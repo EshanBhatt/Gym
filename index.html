@@ -180,7 +180,8 @@ canvas{max-height:260px;}
     <div class="card"><div class="card-label">Rate</div><div class="card-val green" id="bw-rate">—</div><div class="card-sub">lbs/wk avg</div></div>
   </div>
   <div class="section-head">Nutrition · all-time avg</div>
-  <div class="card-grid card-grid-4">
+  <div class="card-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:24px;">
+    <div class="card"><div class="card-label">Calories</div><div class="card-val" id="n-calories-avg" style="color:#e879f9">—</div><div class="card-sub">goal: 2800</div><div class="nut-bar-wrap"><div class="nut-bar" id="n-calories-bar" style="background:#e879f9"></div></div></div>
     <div class="card"><div class="card-label">Protein</div><div class="card-val" id="n-protein-avg">—</div><div class="card-sub">goal: 155g</div><div class="nut-bar-wrap"><div class="nut-bar" id="n-protein-bar" style="background:var(--green)"></div></div></div>
     <div class="card"><div class="card-label">Carbs</div><div class="card-val" id="n-carbs-avg">—</div><div class="card-sub">goal: 400g</div><div class="nut-bar-wrap"><div class="nut-bar" id="n-carbs-bar" style="background:#60a5fa"></div></div></div>
     <div class="card"><div class="card-label">Fat</div><div class="card-val" id="n-fat-avg">—</div><div class="card-sub">target: ≤80g</div><div class="nut-bar-wrap"><div class="nut-bar" id="n-fat-bar" style="background:var(--yellow)"></div></div></div>
@@ -263,18 +264,39 @@ canvas{max-height:260px;}
       <div class="form-group"><label>Carbs (g)</label><input type="number" id="nut-carbs" placeholder="0" style="width:90px;"></div>
       <div class="form-group"><label>Fat (g)</label><input type="number" id="nut-fat" placeholder="0" style="width:90px;"></div>
       <div class="form-group"><label>Sugar (g)</label><input type="number" id="nut-sugar" placeholder="0" style="width:90px;"></div>
+      <div class="form-group"><label>Calories</label><input type="number" id="nut-calories" placeholder="0" style="width:90px;"></div>
       <button class="btn btn-primary" id="nut-btn" onclick="logNutrition()">+ Log Day</button>
     </div>
   </div>
-  <div class="card-grid card-grid-4">
+  <div class="card-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:24px;">
+    <div class="card"><div class="card-label">Calories avg</div><div class="card-val" id="avg-calories" style="color:#e879f9">—</div><div class="card-sub">goal: 2800</div><div class="nut-bar-wrap"><div class="nut-bar" id="bar-calories" style="background:#e879f9"></div></div></div>
     <div class="card"><div class="card-label">Protein avg</div><div class="card-val green" id="avg-protein">—</div><div class="card-sub">goal: 155g</div><div class="nut-bar-wrap"><div class="nut-bar" id="bar-protein" style="background:var(--green)"></div></div></div>
     <div class="card"><div class="card-label">Carbs avg</div><div class="card-val blue" id="avg-carbs">—</div><div class="card-sub">goal: 400g</div><div class="nut-bar-wrap"><div class="nut-bar" id="bar-carbs" style="background:#60a5fa"></div></div></div>
     <div class="card"><div class="card-label">Fat avg</div><div class="card-val yellow" id="avg-fat">—</div><div class="card-sub">target: ≤80g</div><div class="nut-bar-wrap"><div class="nut-bar" id="bar-fat" style="background:var(--yellow)"></div></div></div>
     <div class="card"><div class="card-label">Sugar avg</div><div class="card-val red" id="avg-sugar">—</div><div class="card-sub">target: ≤60g</div><div class="nut-bar-wrap"><div class="nut-bar" id="bar-sugar" style="background:var(--red)"></div></div></div>
   </div>
+
+  <div class="chart-card" style="margin-bottom:16px;">
+    <div class="chart-header"><div><div class="chart-title">Calories over time</div></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" id="nut-range-btn" onclick="toggleNutRange()" style="padding:5px 12px;font-size:11px;background:var(--bg3);color:var(--muted);border:1px solid var(--border);">30 days</button>
+      </div>
+    </div>
+    <canvas id="nut-cal-chart" style="max-height:180px;"></canvas>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:24px;">
+    <div class="chart-card" style="margin-bottom:0;">
+      <div class="chart-header" style="margin-bottom:10px;"><div class="chart-title" style="font-size:13px;">Protein & Carbs</div></div>
+      <canvas id="nut-pc-chart" style="max-height:160px;"></canvas>
+    </div>
+    <div class="chart-card" style="margin-bottom:0;">
+      <div class="chart-header" style="margin-bottom:10px;"><div class="chart-title" style="font-size:13px;">Fat & Sugar</div></div>
+      <canvas id="nut-fs-chart" style="max-height:160px;"></canvas>
+    </div>
+  </div>
   <div class="section-head">Nutrition Log</div>
   <div class="table-wrap">
-    <table><thead><tr><th>Date</th><th>Protein</th><th>Carbs</th><th>Fat</th><th>Sugar</th><th></th></tr></thead>
+    <table><thead><tr><th>Date</th><th>Calories</th><th>Protein</th><th>Carbs</th><th>Fat</th><th>Sugar</th><th></th></tr></thead>
     <tbody id="nut-tbody"></tbody></table>
   </div>
 </div>
@@ -373,12 +395,12 @@ const SEED_SESSIONS = [
 ];
 
 const SEED_NUTRITION = [
-  {date:'2026-05-12',protein:139,carbs:385,fat:91,sugar:127},
-  {date:'2026-05-11',protein:68,carbs:300,fat:37,sugar:52},
-  {date:'2026-05-10',protein:60,carbs:304,fat:58,sugar:68},
-  {date:'2026-05-09',protein:40,carbs:165,fat:70,sugar:55},
-  {date:'2026-05-08',protein:38,carbs:195,fat:59,sugar:59},
-  {date:'2026-05-07',protein:57,carbs:345,fat:86,sugar:66},
+  {date:'2026-05-12',protein:139,carbs:385,fat:91,sugar:127,calories:2943},
+  {date:'2026-05-11',protein:68,carbs:300,fat:37,sugar:52,calories:1865},
+  {date:'2026-05-10',protein:60,carbs:304,fat:58,sugar:68,calories:1978},
+  {date:'2026-05-09',protein:40,carbs:165,fat:70,sugar:55,calories:1442},
+  {date:'2026-05-08',protein:38,carbs:195,fat:59,sugar:59,calories:1443},
+  {date:'2026-05-07',protein:57,carbs:345,fat:86,sugar:66,calories:2402},
 ];
 
 // ══════════════════════════════════════════════
@@ -747,10 +769,11 @@ function renderExercisePage(name) {
 // ══════════════════════════════════════════════
 async function logNutrition() {
   const date    = document.getElementById('nut-date').value;
-  const protein = parseFloat(document.getElementById('nut-protein').value)||0;
-  const carbs   = parseFloat(document.getElementById('nut-carbs').value)||0;
-  const fat     = parseFloat(document.getElementById('nut-fat').value)||0;
-  const sugar   = parseFloat(document.getElementById('nut-sugar').value)||0;
+  const protein  = parseFloat(document.getElementById('nut-protein').value)||0;
+  const carbs    = parseFloat(document.getElementById('nut-carbs').value)||0;
+  const fat      = parseFloat(document.getElementById('nut-fat').value)||0;
+  const sugar    = parseFloat(document.getElementById('nut-sugar').value)||0;
+  const calories = parseFloat(document.getElementById('nut-calories').value)||Math.round(protein*4+carbs*4+fat*9);
   if (!date) { showToast('Pick a date', true); return; }
 
   const btn = document.getElementById('nut-btn');
@@ -761,16 +784,16 @@ async function logNutrition() {
   const existing = nutrition.find(n=>n.date===date);
   let result;
   if (existing) {
-    result = await sb.from('nutrition').update({protein,carbs,fat,sugar}).eq('id',existing.id).select().single();
+    result = await sb.from('nutrition').update({protein,carbs,fat,sugar,calories}).eq('id',existing.id).select().single();
     if (!result.error) { const i=nutrition.findIndex(n=>n.id===existing.id); nutrition[i]=result.data; }
   } else {
-    result = await sb.from('nutrition').insert({date,protein,carbs,fat,sugar}).select().single();
+    result = await sb.from('nutrition').insert({date,protein,carbs,fat,sugar,calories}).select().single();
     if (!result.error) nutrition.unshift(result.data);
   }
 
   if (result.error) { showToast('Save failed: '+result.error.message, true); setSyncDot('err'); }
   else {
-    ['nut-protein','nut-carbs','nut-fat','nut-sugar'].forEach(id=>document.getElementById(id).value='');
+    ['nut-protein','nut-carbs','nut-fat','nut-sugar','nut-calories'].forEach(id=>document.getElementById(id).value='');
     renderNutrition();
     showToast('✓ Nutrition logged');
     setSyncDot('ok');
@@ -788,27 +811,103 @@ async function deleteNutrition(id) {
   showToast('Entry deleted');
 }
 
+let nutRangeDays = 30;
+let nutCalChart = null, nutPCChart = null, nutFSChart = null;
+
+function toggleNutRange() {
+  nutRangeDays = nutRangeDays === 30 ? 90 : nutRangeDays === 90 ? 0 : 30;
+  const btn = document.getElementById('nut-range-btn');
+  if (btn) btn.textContent = nutRangeDays === 0 ? 'All time' : nutRangeDays + ' days';
+  renderNutCharts();
+}
+
 function updateNutAvgs(prefix) {
   if (!nutrition.length) return;
   const avg = k => Math.round(nutrition.reduce((s,n)=>s+(n[k]||0),0)/nutrition.length);
-  const pA=avg('protein'),cA=avg('carbs'),fA=avg('fat'),sA=avg('sugar');
-  const ids = prefix==='dash'
-    ? {p:'n-protein-avg',c:'n-carbs-avg',f:'n-fat-avg',s:'n-sugar-avg',pb:'n-protein-bar',cb:'n-carbs-bar',fb:'n-fat-bar',sb2:'n-sugar-bar'}
-    : {p:'avg-protein',c:'avg-carbs',f:'avg-fat',s:'avg-sugar',pb:'bar-protein',cb:'bar-carbs',fb:'bar-fat',sb2:'bar-sugar'};
-  const set=(id,val,bid,cap)=>{
-    const e=document.getElementById(id); if(e) e.textContent=val+'g';
+  const pA=avg('protein'),cA=avg('carbs'),fA=avg('fat'),sA=avg('sugar'),calA=avg('calories');
+  
+  const set=(id,val,bid,cap,unit)=>{
+    const e=document.getElementById(id); if(e) e.textContent=val+(unit||'g');
     const b=document.getElementById(bid); if(b) b.style.width=Math.min(100,Math.round(val/cap*100))+'%';
   };
-  set(ids.p,pA,ids.pb,155); set(ids.c,cA,ids.cb,400);
-  set(ids.f,fA,ids.fb,120); set(ids.s,sA,ids.sb2,100);
+  if (prefix==='dash') {
+    set('n-calories-avg',calA,'n-calories-bar',2800,'');
+    set('n-protein-avg',pA,'n-protein-bar',155);
+    set('n-carbs-avg',cA,'n-carbs-bar',400);
+    set('n-fat-avg',fA,'n-fat-bar',120);
+    set('n-sugar-avg',sA,'n-sugar-bar',100);
+  } else {
+    set('avg-calories',calA,'bar-calories',2800,'');
+    set('avg-protein',pA,'bar-protein',155);
+    set('avg-carbs',cA,'bar-carbs',400);
+    set('avg-fat',fA,'bar-fat',120);
+    set('avg-sugar',sA,'bar-sugar',100);
+  }
+}
+
+function renderNutCharts() {
+  const sorted = nutrition.slice().sort((a,b)=>a.date.localeCompare(b.date));
+  const filtered = nutRangeDays === 0 ? sorted : sorted.filter(n => {
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-nutRangeDays);
+    return new Date(n.date) >= cutoff;
+  });
+  if (!filtered.length) return;
+
+  const labels = filtered.map(n=>n.date);
+  const chartOpts = (datasets) => ({
+    type:'line',
+    data:{labels, datasets},
+    options:{
+      responsive:true, maintainAspectRatio:true,
+      plugins:{legend:{display:true, labels:{color:'#888780',font:{size:10},boxWidth:10}},
+        tooltip:{backgroundColor:'#1a1a19',borderColor:'#2e2e2c',borderWidth:1,titleColor:'#888780',bodyColor:'#e8e6e1'}},
+      scales:{
+        x:{ticks:{maxTicksLimit:8,color:'#555',font:{size:10}},grid:{color:'#1e1e1d'}},
+        y:{ticks:{color:'#555',font:{size:10}},grid:{color:'#1e1e1d'}}
+      }
+    }
+  });
+
+  // Calories chart
+  if (nutCalChart) { nutCalChart.destroy(); nutCalChart=null; }
+  const calCanvas = document.getElementById('nut-cal-chart');
+  if (calCanvas) {
+    nutCalChart = new Chart(calCanvas, chartOpts([{
+      label:'Calories', data:filtered.map(n=>n.calories||0),
+      borderColor:'#e879f9', backgroundColor:'rgba(232,121,249,0.06)',
+      borderWidth:2, pointRadius:3, tension:0.3, fill:true
+    }]));
+  }
+
+  // Protein & Carbs chart
+  if (nutPCChart) { nutPCChart.destroy(); nutPCChart=null; }
+  const pcCanvas = document.getElementById('nut-pc-chart');
+  if (pcCanvas) {
+    nutPCChart = new Chart(pcCanvas, chartOpts([
+      {label:'Protein (g)',data:filtered.map(n=>n.protein||0),borderColor:'#1d9e75',backgroundColor:'transparent',borderWidth:2,pointRadius:2,tension:0.3},
+      {label:'Carbs (g)',data:filtered.map(n=>n.carbs||0),borderColor:'#60a5fa',backgroundColor:'transparent',borderWidth:2,pointRadius:2,tension:0.3}
+    ]));
+  }
+
+  // Fat & Sugar chart
+  if (nutFSChart) { nutFSChart.destroy(); nutFSChart=null; }
+  const fsCanvas = document.getElementById('nut-fs-chart');
+  if (fsCanvas) {
+    nutFSChart = new Chart(fsCanvas, chartOpts([
+      {label:'Fat (g)',data:filtered.map(n=>n.fat||0),borderColor:'#c48a1a',backgroundColor:'transparent',borderWidth:2,pointRadius:2,tension:0.3},
+      {label:'Sugar (g)',data:filtered.map(n=>n.sugar||0),borderColor:'#c0392b',backgroundColor:'transparent',borderWidth:2,pointRadius:2,tension:0.3}
+    ]));
+  }
 }
 
 function renderNutrition() {
   updateNutAvgs('nut');
+  renderNutCharts();
   const sorted = nutrition.slice().sort((a,b)=>b.date.localeCompare(a.date));
   document.getElementById('nut-tbody').innerHTML = sorted.map(n=>
     `<tr>
       <td>${n.date}</td>
+      <td style="color:#e879f9"><strong>${n.calories||'—'}</strong></td>
       <td class="green"><strong>${n.protein}g</strong></td>
       <td class="blue"><strong>${n.carbs}g</strong></td>
       <td class="yellow">${n.fat}g</td>
