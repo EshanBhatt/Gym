@@ -335,6 +335,21 @@ canvas{max-height:260px;}
 
 </main>
 </div>
+
+<!-- EDIT MODAL -->
+<div id="edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;align-items:center;justify-content:center;">
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px;width:90%;max-width:420px;">
+    <div style="font-family:var(--font-head);font-size:16px;font-weight:700;margin-bottom:16px;" id="edit-modal-title">Edit Session</div>
+    <input type="hidden" id="edit-id">
+    <input type="hidden" id="edit-type">
+    <div id="edit-modal-fields" style="display:flex;flex-direction:column;gap:12px;"></div>
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <button class="btn btn-primary" onclick="saveEdit()" style="flex:1;" id="edit-save-btn">Save</button>
+      <button class="btn" onclick="closeEditModal()" style="background:var(--bg3);color:var(--muted);border:1px solid var(--border);flex:1;">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <!-- MOBILE BOTTOM NAV -->
@@ -679,7 +694,7 @@ function renderLog() {
       <td>${phaseTag(getPhase(s.date))}</td>
       <td>${deltaStr(delta)}</td>
       <td style="color:var(--muted)">${s.notes||''}</td>
-      <td><button class="del-btn" onclick="deleteSession('${s.id}')">✕</button></td>
+      <td style="white-space:nowrap"><button class="del-btn" style="color:var(--muted);margin-right:4px;" onclick="openEditSession('${s.id}')">✎</button><button class="del-btn" onclick="deleteSession('${s.id}')">✕</button></td>
     </tr>`;
   }).join('');
 }
@@ -759,7 +774,7 @@ function renderExercisePage(name) {
       <td>${sess.date}</td><td><strong>${sess.e1rm} lbs</strong></td>
       <td>${phaseTag(getPhase(sess.date))}</td><td>${deltaStr(delta)}</td>
       <td style="color:var(--muted)">${sess.notes||''}</td>
-      <td><button class="del-btn" onclick="deleteSession('${sess.id}')">✕</button></td>
+      <td style="white-space:nowrap"><button class="del-btn" style="color:var(--muted);margin-right:4px;" onclick="openEditSession('${sess.id}')">✎</button><button class="del-btn" onclick="deleteSession('${sess.id}')">✕</button></td>
     </tr>`;
   }).join('');
 }
@@ -912,7 +927,7 @@ function renderNutrition() {
       <td class="blue"><strong>${n.carbs}g</strong></td>
       <td class="yellow">${n.fat}g</td>
       <td class="red">${n.sugar}g</td>
-      <td><button class="del-btn" onclick="deleteNutrition('${n.id}')">✕</button></td>
+      <td style="white-space:nowrap"><button class="del-btn" style="color:var(--muted);margin-right:4px;" onclick="openEditNutrition('${n.id}')">✎</button><button class="del-btn" onclick="deleteNutrition('${n.id}')">✕</button></td>
     </tr>`).join('');
 }
 
@@ -1059,10 +1074,130 @@ function renderWeightPage() {
       <td><strong>${b.weight} lbs</strong></td>
       <td>${ds}</td>
       <td style="color:var(--muted)">${b.notes||''}</td>
-      <td><button class="del-btn" onclick="deleteWeight('${b.id}')">✕</button></td>
+      <td style="white-space:nowrap"><button class="del-btn" style="color:var(--muted);margin-right:4px;" onclick="openEditWeight('${b.id}')">✎</button><button class="del-btn" onclick="deleteWeight('${b.id}')">✕</button></td>
     </tr>`;
   }).join('');
 }
+
+
+// ══════════════════════════════════════════════
+// EDIT MODAL
+// ══════════════════════════════════════════════
+function openModal(title, fields, id, type) {
+  document.getElementById('edit-modal-title').textContent = title;
+  document.getElementById('edit-id').value = id;
+  document.getElementById('edit-type').value = type;
+  const container = document.getElementById('edit-modal-fields');
+  container.innerHTML = fields.map(f => `
+    <div class="form-group">
+      <label>${f.label}</label>
+      <input type="${f.type||'text'}" id="edit-field-${f.key}" value="${f.value}" 
+        step="${f.step||'any'}" style="width:100%;"
+        ${f.type==='date' ? 'style="width:100%;color-scheme:dark;"' : ''}>
+    </div>`).join('');
+  const modal = document.getElementById('edit-modal');
+  modal.style.display = 'flex';
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal').style.display = 'none';
+}
+
+function openEditSession(id) {
+  const s = sessions.find(x => x.id === id);
+  if (!s) return;
+  openModal('Edit Session', [
+    {key:'date',  label:'Date',       type:'date',   value:s.date},
+    {key:'e1rm',  label:'e1RM (lbs)', type:'number', value:s.e1rm, step:'0.5'},
+    {key:'notes', label:'Notes',      type:'text',   value:s.notes||''},
+  ], id, 'session');
+}
+
+function openEditNutrition(id) {
+  const n = nutrition.find(x => x.id === id);
+  if (!n) return;
+  openModal('Edit Nutrition', [
+    {key:'date',     label:'Date',         type:'date',   value:n.date},
+    {key:'calories', label:'Calories',     type:'number', value:n.calories||0},
+    {key:'protein',  label:'Protein (g)',  type:'number', value:n.protein},
+    {key:'carbs',    label:'Carbs (g)',    type:'number', value:n.carbs},
+    {key:'fat',      label:'Fat (g)',      type:'number', value:n.fat},
+    {key:'sugar',    label:'Sugar (g)',    type:'number', value:n.sugar},
+  ], id, 'nutrition');
+}
+
+function openEditWeight(id) {
+  const b = bodyweights.find(x => x.id === id);
+  if (!b) return;
+  openModal('Edit Weight', [
+    {key:'date',   label:'Date',         type:'date',   value:b.date},
+    {key:'weight', label:'Weight (lbs)', type:'number', value:b.weight, step:'0.1'},
+    {key:'notes',  label:'Notes',        type:'text',   value:b.notes||''},
+  ], id, 'weight');
+}
+
+function getField(key) {
+  const el = document.getElementById('edit-field-'+key);
+  return el ? el.value : '';
+}
+
+async function saveEdit() {
+  const id   = document.getElementById('edit-id').value;
+  const type = document.getElementById('edit-type').value;
+  const btn  = document.getElementById('edit-save-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  setSyncDot('loading');
+
+  let result;
+  if (type === 'session') {
+    const updates = { date: getField('date'), e1rm: parseFloat(getField('e1rm')), notes: getField('notes') };
+    result = await sb.from('sessions').update(updates).eq('id', id).select().single();
+    if (!result.error) {
+      const i = sessions.findIndex(s => s.id === id);
+      if (i > -1) sessions[i] = result.data;
+      closeEditModal();
+      renderLog();
+      if (activeExercise) renderExercisePage(activeExercise);
+      buildNav();
+    }
+  } else if (type === 'nutrition') {
+    const updates = {
+      date: getField('date'),
+      calories: parseFloat(getField('calories'))||0,
+      protein:  parseFloat(getField('protein'))||0,
+      carbs:    parseFloat(getField('carbs'))||0,
+      fat:      parseFloat(getField('fat'))||0,
+      sugar:    parseFloat(getField('sugar'))||0,
+    };
+    result = await sb.from('nutrition').update(updates).eq('id', id).select().single();
+    if (!result.error) {
+      const i = nutrition.findIndex(n => n.id === id);
+      if (i > -1) nutrition[i] = result.data;
+      closeEditModal();
+      renderNutrition();
+      updateNutAvgs('dash');
+    }
+  } else if (type === 'weight') {
+    const updates = { date: getField('date'), weight: parseFloat(getField('weight')), notes: getField('notes') };
+    result = await sb.from('bodyweights').update(updates).eq('id', id).select().single();
+    if (!result.error) {
+      const i = bodyweights.findIndex(b => b.id === id);
+      if (i > -1) bodyweights[i] = result.data;
+      closeEditModal();
+      renderWeightPage();
+      updateBWCards();
+    }
+  }
+
+  if (result.error) { showToast('Save failed: ' + result.error.message, true); setSyncDot('err'); }
+  else { showToast('✓ Updated'); setSyncDot('ok'); }
+  btn.disabled = false; btn.textContent = 'Save';
+}
+
+// Close modal on backdrop click
+document.getElementById('edit-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeEditModal();
+});
 
 // ══════════════════════════════════════════════
 // MOBILE NAV
