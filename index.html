@@ -654,6 +654,7 @@ function showPage(page, exName) {
     if (page==='log') { renderLog(); document.querySelectorAll('.nav-item')[1].classList.add('active'); }
     if (page==='nutrition') { renderNutrition(); }
     if (page==='weight') { renderWeightPage(); }
+    if (page==='weekly') { renderWeeklyReport(); }
   }
 }
 
@@ -1424,8 +1425,13 @@ function calcWeekData(start, end) {
 }
 
 function renderWeeklyReport() {
+  // Guard: if data not loaded yet, retry after short delay
+  if (!sessions.length && !nutrition.length) {
+    setTimeout(renderWeeklyReport, 500);
+    return;
+  }
+
   const { start, end } = getCurrentWeekBounds();
-  const today = new Date().toISOString().split('T')[0];
   const isSunday = new Date().getDay() === 0;
 
   document.getElementById('weekly-range-label').textContent =
@@ -1591,6 +1597,7 @@ async function init() {
     buildNav();
     renderDashboard();
     updateBWCards();
+    renderWeeklyHistoryTable();
   }
 }
 
