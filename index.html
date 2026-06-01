@@ -284,14 +284,24 @@ canvas{max-height:260px;}
     </div>
     <canvas id="nut-cal-chart" style="max-height:180px;"></canvas>
   </div>
-  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:24px;">
+  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:12px;">
     <div class="chart-card" style="margin-bottom:0;">
-      <div class="chart-header" style="margin-bottom:10px;"><div class="chart-title" style="font-size:13px;">Protein & Carbs</div></div>
-      <canvas id="nut-pc-chart" style="max-height:160px;"></canvas>
+      <div class="chart-header" style="margin-bottom:10px;"><div class="chart-title" style="font-size:13px;color:var(--green);">Protein</div></div>
+      <canvas id="nut-p-chart" style="max-height:140px;"></canvas>
     </div>
     <div class="chart-card" style="margin-bottom:0;">
-      <div class="chart-header" style="margin-bottom:10px;"><div class="chart-title" style="font-size:13px;">Fat & Sugar</div></div>
-      <canvas id="nut-fs-chart" style="max-height:160px;"></canvas>
+      <div class="chart-header" style="margin-bottom:10px;"><div class="chart-title" style="font-size:13px;color:#60a5fa;">Carbs</div></div>
+      <canvas id="nut-c-chart" style="max-height:140px;"></canvas>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:24px;">
+    <div class="chart-card" style="margin-bottom:0;">
+      <div class="chart-header" style="margin-bottom:10px;"><div class="chart-title" style="font-size:13px;color:var(--yellow);">Fat</div></div>
+      <canvas id="nut-f-chart" style="max-height:140px;"></canvas>
+    </div>
+    <div class="chart-card" style="margin-bottom:0;">
+      <div class="chart-header" style="margin-bottom:10px;"><div class="chart-title" style="font-size:13px;color:var(--red);">Sugar</div></div>
+      <canvas id="nut-s-chart" style="max-height:140px;"></canvas>
     </div>
   </div>
   <div class="section-head">Nutrition Log</div>
@@ -838,7 +848,7 @@ async function deleteNutrition(id) {
 }
 
 let nutRangeDays = 30;
-let nutCalChart = null, nutPCChart = null, nutFSChart = null;
+let nutCalChart = null, nutPChart = null, nutCChart = null, nutFChart = null, nutSChart = null;
 
 function toggleNutRange() {
   nutRangeDays = nutRangeDays === 30 ? 90 : nutRangeDays === 90 ? 0 : 30;
@@ -905,25 +915,29 @@ function renderNutCharts() {
     }]));
   }
 
-  // Protein & Carbs chart
-  if (nutPCChart) { nutPCChart.destroy(); nutPCChart=null; }
-  const pcCanvas = document.getElementById('nut-pc-chart');
-  if (pcCanvas) {
-    nutPCChart = new Chart(pcCanvas, chartOpts([
-      {label:'Protein (g)',data:filtered.map(n=>n.protein||0),borderColor:'#1d9e75',backgroundColor:'transparent',borderWidth:2,pointRadius:2,tension:0.3},
-      {label:'Carbs (g)',data:filtered.map(n=>n.carbs||0),borderColor:'#60a5fa',backgroundColor:'transparent',borderWidth:2,pointRadius:2,tension:0.3}
-    ]));
-  }
-
-  // Fat & Sugar chart
-  if (nutFSChart) { nutFSChart.destroy(); nutFSChart=null; }
-  const fsCanvas = document.getElementById('nut-fs-chart');
-  if (fsCanvas) {
-    nutFSChart = new Chart(fsCanvas, chartOpts([
-      {label:'Fat (g)',data:filtered.map(n=>n.fat||0),borderColor:'#c48a1a',backgroundColor:'transparent',borderWidth:2,pointRadius:2,tension:0.3},
-      {label:'Sugar (g)',data:filtered.map(n=>n.sugar||0),borderColor:'#c0392b',backgroundColor:'transparent',borderWidth:2,pointRadius:2,tension:0.3}
-    ]));
-  }
+  // Individual macro charts
+  const macros = [
+    { key:'nutPChart', id:'nut-p-chart', field:'protein', color:'#1d9e75', label:'Protein (g)' },
+    { key:'nutCChart', id:'nut-c-chart', field:'carbs',   color:'#60a5fa', label:'Carbs (g)' },
+    { key:'nutFChart', id:'nut-f-chart', field:'fat',     color:'#c48a1a', label:'Fat (g)' },
+    { key:'nutSChart', id:'nut-s-chart', field:'sugar',   color:'#c0392b', label:'Sugar (g)' },
+  ];
+  const chartVars = { nutPChart, nutCChart, nutFChart, nutSChart };
+  macros.forEach(m => {
+    if (chartVars[m.key]) { chartVars[m.key].destroy(); }
+    const canvas = document.getElementById(m.id);
+    if (canvas) {
+      const inst = new Chart(canvas, chartOpts([{
+        label: m.label, data: filtered.map(n => n[m.field]||0),
+        borderColor: m.color, backgroundColor: 'transparent',
+        borderWidth: 2, pointRadius: 3, tension: 0.3, fill: false
+      }]));
+      if (m.key === 'nutPChart') nutPChart = inst;
+      else if (m.key === 'nutCChart') nutCChart = inst;
+      else if (m.key === 'nutFChart') nutFChart = inst;
+      else if (m.key === 'nutSChart') nutSChart = inst;
+    }
+  });
 }
 
 function renderNutrition() {
