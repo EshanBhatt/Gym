@@ -716,9 +716,17 @@ function renderExercisePage(name) {
   const cut  = s.filter(x=>getPhase(x.date)==='cut');
   const lean = s.filter(x=>getPhase(x.date)==='lean');
 
+  const prEntry = s.reduce((best, x) => x.e1rm > best.e1rm ? x : best, s[0]);
+  const isPR = prEntry.e1rm === last;
+
   document.getElementById('ex-stat-cards').innerHTML = `
     <div class="card"><div class="card-label">Start</div><div class="card-val">${first}</div><div class="card-sub">lbs</div></div>
-    <div class="card"><div class="card-label">Current</div><div class="card-val green">${last}</div><div class="card-sub">lbs</div></div>
+    <div class="card"><div class="card-label">Current</div><div class="card-val ${isPR ? 'green' : ''}">${last}${isPR ? ' 🏆' : ''}</div><div class="card-sub">lbs</div></div>
+    <div class="card" style="border-color:var(--yellow)">
+      <div class="card-label" style="color:var(--yellow)">All-time PR</div>
+      <div class="card-val" style="color:var(--yellow)">${prEntry.e1rm}</div>
+      <div class="card-sub">lbs · ${prEntry.date}</div>
+    </div>
     <div class="card"><div class="card-label">Total Gain</div><div class="card-val green">+${pct}%</div><div class="card-sub">${s.length} sessions</div></div>
     <div class="card"><div class="card-label">By Phase</div>
       <div style="font-size:11px;margin-top:4px;line-height:2">
