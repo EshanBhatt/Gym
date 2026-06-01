@@ -152,6 +152,7 @@ canvas{max-height:260px;}
   <div id="ex-nav"></div>
   <div class="nav-section">Health</div>
   <div class="nav-item" onclick="showPage('weight')"><div class="nav-dot" style="background:var(--yellow)"></div>Body Weight</div>
+  <div class="nav-item" onclick="showPage('weekly')"><div class="nav-dot" style="background:#e879f9"></div>Weekly Report</div>
   <div class="nav-item" onclick="showPage('nutrition')"><div class="nav-dot" style="background:var(--blue)"></div>Macros</div>
 </nav>
 
@@ -343,6 +344,63 @@ canvas{max-height:260px;}
   </div>
 </div>
 
+
+<!-- WEEKLY REPORT PAGE -->
+<div id="page-weekly" class="page">
+  <div class="page-header">
+    <div class="page-title">Weekly Report</div>
+    <div class="page-sub" id="weekly-range-label">Sun – Sat · live grading</div>
+  </div>
+
+  <!-- Current week live grade -->
+  <div class="section-head">This Week · Live</div>
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:24px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:20px;">
+      <div>
+        <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Overall Grade</div>
+        <div id="weekly-overall-grade" style="font-family:var(--font-head);font-size:64px;font-weight:800;line-height:1;"></div>
+        <div id="weekly-overall-score" style="font-size:12px;color:var(--muted);margin-top:4px;"></div>
+      </div>
+      <div id="weekly-status-msg" style="font-size:13px;color:var(--muted);max-width:300px;line-height:1.6;"></div>
+    </div>
+    <div id="weekly-category-cards" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;"></div>
+  </div>
+
+  <!-- Lock week button (shows on Sunday) -->
+  <div id="weekly-lock-wrap" style="display:none;margin-bottom:24px;">
+    <div style="background:var(--green-dim);border:1px solid var(--green);border-radius:10px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div>
+        <div style="font-weight:600;color:var(--green);">It's Sunday — lock in this week's grade?</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:3px;">Saves permanently to your history below.</div>
+      </div>
+      <button class="btn btn-primary" onclick="lockWeek()">Lock Week</button>
+    </div>
+  </div>
+
+  <!-- History table -->
+  <div class="section-head">Grade History</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Week</th>
+          <th>Grade</th>
+          <th>Score</th>
+          <th>Protein</th>
+          <th>Carbs</th>
+          <th>Fat</th>
+          <th>Calories</th>
+          <th>Gym</th>
+          <th>Sessions</th>
+          <th>PRs</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="weekly-history-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
 </main>
 </div>
 
@@ -380,6 +438,10 @@ canvas{max-height:260px;}
     <button class="mob-btn" id="mob-weight" onclick="mobNav('weight')">
       <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/><circle cx="12" cy="6" r="2"/></svg>
       Weight
+    </button>
+    <button class="mob-btn" id="mob-weekly" onclick="mobNav('weekly')">
+      <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      Weekly
     </button>
     <button class="mob-btn" id="mob-nutrition" onclick="mobNav('nutrition')">
       <svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 1 7 7c0 5-7 13-7 13S5 14 5 9a7 7 0 0 1 7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
@@ -1224,13 +1286,253 @@ document.getElementById('edit-modal').addEventListener('click', function(e) {
   if (e.target === this) closeEditModal();
 });
 
+
+// ══════════════════════════════════════════════
+// WEEKLY REPORT
+// ══════════════════════════════════════════════
+
+// Goals
+const GOALS = {
+  protein:  { target: 155, weight: 0.25, lowerIsBetter: false },
+  carbs:    { target: 400, weight: 0.12, lowerIsBetter: false },
+  fat:      { target: 80,  weight: 0.07, lowerIsBetter: true  },
+  sugar:    { target: 60,  weight: 0.06, lowerIsBetter: true  },
+  calories: { target: 2800,weight: 0.15, lowerIsBetter: false },
+  gym:      { target: 4,   weight: 0.35, lowerIsBetter: false }, // sessions + PR + overload
+};
+
+let weeklyHistory = JSON.parse(localStorage.getItem('weeklyHistory') || '[]');
+
+function saveWeeklyHistory() {
+  localStorage.setItem('weeklyHistory', JSON.stringify(weeklyHistory));
+}
+
+// Get Sun–Sat week boundaries for a given date
+function getWeekBounds(d) {
+  const date = new Date(d);
+  const day = date.getDay(); // 0=Sun
+  const sun = new Date(date); sun.setDate(date.getDate() - day);
+  const sat = new Date(sun);  sat.setDate(sun.getDate() + 6);
+  const fmt = d => d.toISOString().split('T')[0];
+  return { start: fmt(sun), end: fmt(sat) };
+}
+
+function getCurrentWeekBounds() {
+  return getWeekBounds(new Date());
+}
+
+function scoreToGrade(score) {
+  if (score >= 93) return { letter: 'A+', color: '#1d9e75' };
+  if (score >= 90) return { letter: 'A',  color: '#1d9e75' };
+  if (score >= 87) return { letter: 'A-', color: '#1d9e75' };
+  if (score >= 83) return { letter: 'B+', color: '#60a5fa' };
+  if (score >= 80) return { letter: 'B',  color: '#60a5fa' };
+  if (score >= 77) return { letter: 'B-', color: '#60a5fa' };
+  if (score >= 73) return { letter: 'C+', color: '#c48a1a' };
+  if (score >= 70) return { letter: 'C',  color: '#c48a1a' };
+  if (score >= 67) return { letter: 'C-', color: '#c48a1a' };
+  if (score >= 60) return { letter: 'D',  color: '#e87417' };
+  return { letter: 'F', color: '#c0392b' };
+}
+
+function calcWeekData(start, end) {
+  // Nutrition for week
+  const nutDays = nutrition.filter(n => n.date >= start && n.date <= end);
+  const avg = key => nutDays.length ? Math.round(nutDays.reduce((s,n)=>s+(n[key]||0),0)/nutDays.length) : 0;
+  const pAvg = avg('protein'), cAvg = avg('carbs'), fAvg = avg('fat'),
+        sAvg = avg('sugar'), calAvg = avg('calories');
+
+  // Sessions for week
+  const weekSessions = sessions.filter(s => s.date >= start && s.date <= end);
+  const sessionCount = new Set(weekSessions.map(s => s.date)).size; // unique days
+
+  // PRs hit this week
+  let prsHit = 0;
+  const exNames = [...new Set(weekSessions.map(s => s.exercise))];
+  exNames.forEach(name => {
+    const allEx = getExSessions(name);
+    const weekEx = allEx.filter(s => s.date >= start && s.date <= end);
+    if (!weekEx.length) return;
+    const bestThisWeek = Math.max(...weekEx.map(s => s.e1rm));
+    const allBefore = allEx.filter(s => s.date < start);
+    const prevBest = allBefore.length ? Math.max(...allBefore.map(s => s.e1rm)) : 0;
+    if (bestThisWeek > prevBest) prsHit++;
+  });
+
+  // Progressive overload score: for each exercise trained,
+  // compare latest session this week vs latest session before this week
+  let overloadPoints = 0, overloadTotal = 0;
+  exNames.forEach(name => {
+    const allEx = getExSessions(name);
+    const weekEx = allEx.filter(s => s.date >= start && s.date <= end);
+    const prevEx = allEx.filter(s => s.date < start);
+    if (!weekEx.length || !prevEx.length) return;
+    overloadTotal++;
+    const lastThisWeek = weekEx[weekEx.length-1].e1rm;
+    const lastBefore   = prevEx[prevEx.length-1].e1rm;
+    if (lastThisWeek > lastBefore) overloadPoints += 1;
+    else if (lastThisWeek === lastBefore) overloadPoints += 0.5;
+    // regression = 0 points
+  });
+  const overloadPct = overloadTotal > 0 ? overloadPoints / overloadTotal : 0;
+
+  // Gym score (0–100): sessions 50%, PRs 25%, overload 25%
+  const sessionScore  = Math.min(1, sessionCount / GOALS.gym.target) * 50;
+  const prScore       = Math.min(1, prsHit / Math.max(1, exNames.length * 0.3)) * 25;
+  const overloadScore = overloadPct * 25;
+  const gymScore      = Math.round(sessionScore + prScore + overloadScore);
+
+  // Nutrition scores (0–100 each)
+  function nutScore(val, target, lowerIsBetter) {
+    if (!val) return 0;
+    if (lowerIsBetter) {
+      if (val <= target) return 100;
+      const over = (val - target) / target;
+      return Math.max(0, Math.round(100 - over * 100));
+    } else {
+      return Math.min(100, Math.round((val / target) * 100));
+    }
+  }
+
+  const scores = {
+    protein:  nutScore(pAvg, GOALS.protein.target,  false),
+    carbs:    nutScore(cAvg, GOALS.carbs.target,     false),
+    fat:      nutScore(fAvg, GOALS.fat.target,       true),
+    sugar:    nutScore(sAvg, GOALS.sugar.target,     true),
+    calories: nutScore(calAvg, GOALS.calories.target,false),
+    gym:      gymScore,
+  };
+
+  // Weighted overall
+  const overall = Math.round(
+    scores.protein  * GOALS.protein.weight  +
+    scores.carbs    * GOALS.carbs.weight    +
+    scores.fat      * GOALS.fat.weight      +
+    scores.sugar    * GOALS.sugar.weight    +
+    scores.calories * GOALS.calories.weight +
+    scores.gym      * GOALS.gym.weight
+  );
+
+  return {
+    start, end,
+    pAvg, cAvg, fAvg, sAvg, calAvg,
+    sessionCount, prsHit, overloadPct: Math.round(overloadPct*100),
+    scores, overall,
+    nutDays: nutDays.length,
+    exCount: exNames.length,
+  };
+}
+
+function renderWeeklyReport() {
+  const { start, end } = getCurrentWeekBounds();
+  const today = new Date().toISOString().split('T')[0];
+  const isSunday = new Date().getDay() === 0;
+
+  document.getElementById('weekly-range-label').textContent =
+    `${start} – ${end} · ${isSunday ? 'Final grade day!' : 'Live grading'}`;
+
+  const data = calcWeekData(start, end);
+  renderWeekLiveGrade(data, isSunday);
+  renderWeeklyHistoryTable();
+
+  // Show lock button on Sunday if not already locked
+  const alreadyLocked = weeklyHistory.some(w => w.start === start);
+  document.getElementById('weekly-lock-wrap').style.display =
+    (isSunday && !alreadyLocked) ? 'block' : 'none';
+}
+
+function renderWeekLiveGrade(data, isFinal) {
+  const grade = scoreToGrade(data.overall);
+  const el = document.getElementById('weekly-overall-grade');
+  el.textContent = grade.letter;
+  el.style.color = grade.color;
+
+  document.getElementById('weekly-overall-score').textContent =
+    `${data.overall}/100 · ${isFinal ? 'Final grade' : 'with ' + (7 - new Date().getDay()) + ' day(s) remaining'}`;
+
+  // Status message
+  const msgs = [];
+  if (data.sessionCount < GOALS.gym.target) msgs.push(`🏋 ${data.sessionCount}/${GOALS.gym.target} sessions this week`);
+  else msgs.push(`🏋 All ${GOALS.gym.target} gym sessions hit!`);
+  if (data.prsHit > 0) msgs.push(`🏆 ${data.prsHit} PR${data.prsHit>1?'s':''} this week!`);
+  if (data.scores.protein < 70) msgs.push(`⚠ Protein low — avg ${data.pAvg}g vs ${GOALS.protein.target}g goal`);
+  document.getElementById('weekly-status-msg').innerHTML = msgs.join('<br>');
+
+  // Category cards
+  const cats = [
+    { label: 'Protein',   score: data.scores.protein,  detail: `${data.pAvg}g avg · goal ${GOALS.protein.target}g` },
+    { label: 'Carbs',     score: data.scores.carbs,    detail: `${data.cAvg}g avg · goal ${GOALS.carbs.target}g` },
+    { label: 'Fat',       score: data.scores.fat,      detail: `${data.fAvg}g avg · target ≤${GOALS.fat.target}g` },
+    { label: 'Sugar',     score: data.scores.sugar,    detail: `${data.sAvg}g avg · target ≤${GOALS.sugar.target}g` },
+    { label: 'Calories',  score: data.scores.calories, detail: `${data.calAvg} avg · goal ${GOALS.calories.target}` },
+    { label: 'Gym',       score: data.scores.gym,      detail: `${data.sessionCount} sessions · ${data.prsHit} PRs · ${data.overloadPct}% overload` },
+  ];
+
+  document.getElementById('weekly-category-cards').innerHTML = cats.map(cat => {
+    const g = scoreToGrade(cat.score);
+    return `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+        <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);">${cat.label}</div>
+        <div style="font-family:var(--font-head);font-size:20px;font-weight:800;color:${g.color};line-height:1">${g.letter}</div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);">${cat.detail}</div>
+      <div style="margin-top:8px;height:3px;background:var(--border);border-radius:2px;">
+        <div style="height:100%;width:${Math.min(100,cat.score)}%;background:${g.color};border-radius:2px;transition:width 0.4s;"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function lockWeek() {
+  const { start, end } = getCurrentWeekBounds();
+  if (weeklyHistory.some(w => w.start === start)) { showToast('Week already locked'); return; }
+  const data = calcWeekData(start, end);
+  weeklyHistory.unshift({ ...data, locked: new Date().toISOString() });
+  saveWeeklyHistory();
+  document.getElementById('weekly-lock-wrap').style.display = 'none';
+  renderWeeklyHistoryTable();
+  showToast('✓ Week locked — ' + scoreToGrade(data.overall).letter);
+}
+
+function deleteWeeklyEntry(start) {
+  weeklyHistory = weeklyHistory.filter(w => w.start !== start);
+  saveWeeklyHistory();
+  renderWeeklyHistoryTable();
+  showToast('Entry deleted');
+}
+
+function renderWeeklyHistoryTable() {
+  const tbody = document.getElementById('weekly-history-tbody');
+  if (!weeklyHistory.length) {
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:24px;">No locked weeks yet — come back Sunday to lock your first grade.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = weeklyHistory.map(w => {
+    const g = scoreToGrade(w.overall);
+    const sg = scoreToGrade(w.scores.gym);
+    return `<tr>
+      <td style="white-space:nowrap;color:var(--muted)">${w.start} – ${w.end}</td>
+      <td><span style="font-family:var(--font-head);font-size:18px;font-weight:800;color:${g.color}">${g.letter}</span></td>
+      <td style="color:${g.color};font-weight:600;">${w.overall}/100</td>
+      <td class="green">${w.pAvg}g</td>
+      <td class="blue">${w.cAvg}g</td>
+      <td class="yellow">${w.fAvg}g</td>
+      <td style="color:#e879f9">${w.calAvg}</td>
+      <td><span style="font-family:var(--font-head);font-size:14px;font-weight:700;color:${sg.color}">${sg.letter}</span></td>
+      <td style="color:var(--muted)">${w.sessionCount}/${GOALS.gym.target}</td>
+      <td style="color:var(--yellow)">${w.prsHit} 🏆</td>
+      <td><button class="del-btn" onclick="deleteWeeklyEntry('${w.start}')">✕</button></td>
+    </tr>`;
+  }).join('');
+}
+
 // ══════════════════════════════════════════════
 // MOBILE NAV
 // ══════════════════════════════════════════════
 function mobNav(page, exName) {
   closeMobMore();
   // Update mob button states
-  ['dashboard','log','exercises','weight','nutrition'].forEach(p => {
+  ['dashboard','log','exercises','weight','weekly','nutrition'].forEach(p => {
     const b = document.getElementById('mob-'+p);
     if (b) b.classList.remove('active');
   });
