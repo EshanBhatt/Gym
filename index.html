@@ -148,6 +148,7 @@ canvas{max-height:260px;}
   <div class="nav-section">Overview</div>
   <div class="nav-item active" onclick="showPage('dashboard')"><div class="nav-dot" style="background:var(--green)"></div>Dashboard</div>
   <div class="nav-item" onclick="showPage('log')"><div class="nav-dot" style="background:var(--yellow)"></div>Log Session</div>
+  <div class="nav-item" onclick="showPage('stats')"><div class="nav-dot" style="background:#e879f9"></div>Fun Stats</div>
   <div class="nav-section">Exercises</div>
   <div id="ex-nav"></div>
   <div class="nav-section">Health</div>
@@ -401,6 +402,18 @@ canvas{max-height:260px;}
   </div>
 </div>
 
+
+<!-- FUN STATS PAGE -->
+<div id="page-stats" class="page">
+  <div class="page-header">
+    <div class="page-title">Fun Stats</div>
+    <div class="page-sub">Patterns, streaks, and insights across all your data</div>
+  </div>
+  <div id="fun-stats-content">
+    <div style="color:var(--muted);padding:40px 0;text-align:center;">Loading stats...</div>
+  </div>
+</div>
+
 </main>
 </div>
 
@@ -430,6 +443,10 @@ canvas{max-height:260px;}
     <button class="mob-btn" id="mob-log" onclick="mobNav('log')">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
       Log
+    </button>
+    <button class="mob-btn" id="mob-stats" onclick="mobNav('stats')">
+      <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Stats
     </button>
     <button class="mob-btn" id="mob-exercises" onclick="toggleMobMore()">
       <svg viewBox="0 0 24 24"><path d="M6 4v16M18 4v16M3 8h4M17 8h4M3 16h4M17 16h4"/></svg>
@@ -657,6 +674,7 @@ function showPage(page, exName) {
     if (page==='nutrition') { renderNutrition(); }
     if (page==='weight') { renderWeightPage(); }
     if (page==='weekly') { renderWeeklyReport(); }
+    if (page==='stats') { renderFunStats(); }
   }
 }
 
@@ -1551,13 +1569,316 @@ function renderWeeklyHistoryTable() {
   }).join('');
 }
 
+
+// ══════════════════════════════════════════════
+// FUN STATS
+// ══════════════════════════════════════════════
+function renderFunStats() {
+  if (!dataReady) { setTimeout(renderFunStats, 300); return; }
+
+  const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const DAYS_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  // ── TRAINING PATTERNS ──────────────────────
+  // Sessions by day of week
+  const sessionsByDay = Array(7).fill(0);
+  sessions.forEach(s => {
+    const d = new Date(s.date + 'T12:00:00');
+    sessionsByDay[d.getDay()]++;
+  });
+  const favDayIdx = sessionsByDay.indexOf(Math.max(...sessionsByDay));
+  const leastDayIdx = sessionsByDay.indexOf(Math.min(...sessionsByDay.filter(x=>x>0)));
+
+  // Training streak
+  const sessionDates = [...new Set(sessions.map(s=>s.date))].sort();
+  let maxStreak = 0, curStreak = 0, streakEnd = '';
+  for (let i = 0; i < sessionDates.length; i++) {
+    if (i === 0) { curStreak = 1; continue; }
+    const prev = new Date(sessionDates[i-1]+'T12:00:00');
+    const curr = new Date(sessionDates[i]+'T12:00:00');
+    const diff = (curr - prev) / 86400000;
+    if (diff === 1) { curStreak++; }
+    else { curStreak = 1; }
+    if (curStreak > maxStreak) { maxStreak = curStreak; streakEnd = sessionDates[i]; }
+  }
+  if (maxStreak === 0 && sessionDates.length > 0) maxStreak = 1;
+
+  // Sessions per week avg
+  const firstDate = new Date(sessionDates[0]+'T12:00:00');
+  const lastDate  = new Date(sessionDates[sessionDates.length-1]+'T12:00:00');
+  const totalWeeks = Math.max(1, Math.round((lastDate - firstDate) / (7*86400000)));
+  const avgSessionsPerWeek = (sessionDates.length / totalWeeks).toFixed(1);
+
+  // Most trained exercise
+  const exCounts = {};
+  sessions.forEach(s => { exCounts[s.exercise] = (exCounts[s.exercise]||0)+1; });
+  const topEx = Object.entries(exCounts).sort((a,b)=>b[1]-a[1])[0];
+  const leastEx = Object.entries(exCounts).sort((a,b)=>a[1]-b[1])[0];
+
+  // Biggest single-session PR jump
+  let biggestJump = { ex:'', jump:0, date:'', from:0, to:0 };
+  Object.keys(exCounts).forEach(name => {
+    const s = getExSessions(name);
+    for (let i=1; i<s.length; i++) {
+      const jump = s[i].e1rm - s[i-1].e1rm;
+      if (jump > biggestJump.jump) {
+        biggestJump = { ex:name, jump, date:s[i].date, from:s[i-1].e1rm, to:s[i].e1rm };
+      }
+    }
+  });
+
+  // Most improved exercise by %
+  const improvements = Object.keys(exCounts).map(name => {
+    const s = getExSessions(name);
+    if (s.length < 2) return null;
+    const pct = Math.round((s[s.length-1].e1rm - s[0].e1rm) / s[0].e1rm * 100);
+    return { name, pct };
+  }).filter(Boolean).sort((a,b)=>b.pct-a.pct);
+
+  // Exercises not touched in 30+ days
+  const today = new Date();
+  const rustyExercises = Object.keys(exCounts).filter(name => {
+    const s = getExSessions(name);
+    const last = new Date(s[s.length-1].date+'T12:00:00');
+    return (today - last) / 86400000 > 30;
+  });
+
+  // Days since last gym session
+  const lastSessionDate = sessionDates[sessionDates.length-1];
+  const daysSinceGym = Math.floor((today - new Date(lastSessionDate+'T12:00:00')) / 86400000);
+
+  // ── NUTRITION PATTERNS ─────────────────────
+  const nutByDay = Array(7).fill(0).map(()=>({cal:0,prot:0,n:0}));
+  nutrition.forEach(n => {
+    const d = new Date(n.date+'T12:00:00').getDay();
+    nutByDay[d].cal   += n.calories||0;
+    nutByDay[d].prot  += n.protein||0;
+    nutByDay[d].n++;
+  });
+  const nutAvgByDay = nutByDay.map(d => ({
+    cal:  d.n ? Math.round(d.cal/d.n)  : 0,
+    prot: d.n ? Math.round(d.prot/d.n) : 0,
+    n: d.n
+  }));
+  const bestCalDay  = nutAvgByDay.indexOf(nutAvgByDay.reduce((b,d,i,a)=>d.cal>a[b].cal?i:b, 0));
+  const worstCalDay = nutAvgByDay.indexOf(nutAvgByDay.filter(d=>d.n>0).reduce((best,d)=>{
+    return (d.cal < best.cal && d.n > 0) ? d : best;
+  }, {cal:99999,n:0}));
+
+  // Best protein day ever
+  const bestProtDay = nutrition.slice().sort((a,b)=>(b.protein||0)-(a.protein||0))[0];
+  const worstProtDay = nutrition.filter(n=>n.protein>0).sort((a,b)=>(a.protein||0)-(b.protein||0))[0];
+
+  // Protein goal streak
+  const sortedNut = nutrition.slice().sort((a,b)=>a.date.localeCompare(b.date));
+  let protStreak=0, bestProtStreak=0;
+  sortedNut.forEach(n => {
+    if ((n.protein||0) >= 155) { protStreak++; bestProtStreak = Math.max(bestProtStreak, protStreak); }
+    else protStreak = 0;
+  });
+
+  // Total days logged nutrition
+  const totalNutDays = nutrition.length;
+
+  // ── BODY WEIGHT ────────────────────────────
+  const bwSorted = getBWSorted();
+  let fastestGainWeek = { gain:0, start:'', end:'' };
+  for (let i=1; i<bwSorted.length; i++) {
+    const days = (new Date(bwSorted[i].date+'T12:00:00') - new Date(bwSorted[i-1].date+'T12:00:00')) / 86400000;
+    if (days <= 8) {
+      const gain = bwSorted[i].weight - bwSorted[i-1].weight;
+      if (gain > fastestGainWeek.gain) fastestGainWeek = { gain:gain.toFixed(1), start:bwSorted[i-1].date, end:bwSorted[i].date };
+    }
+  }
+
+  // ── PHASE STATS ────────────────────────────
+  const phaseSessionCounts = { bulk:0, cut:0, lean:0 };
+  sessions.forEach(s => { phaseSessionCounts[getPhase(s.date)]++; });
+
+  // ── RENDER ─────────────────────────────────
+  const section = (title, cards) => `
+    <div class="section-head">${title}</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px;">
+      ${cards.map(c => `
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;">
+          <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">${c.label}</div>
+          <div style="font-family:var(--font-head);font-size:${c.big?'22px':'18px'};font-weight:700;color:${c.color||'var(--text)'};line-height:1.2;">${c.value}</div>
+          ${c.sub ? `<div style="font-size:11px;color:var(--muted);margin-top:5px;">${c.sub}</div>` : ''}
+        </div>`).join('')}
+    </div>`;
+
+  // Day of week bar chart for sessions
+  const maxDaySessions = Math.max(...sessionsByDay);
+  const dayBars = DAYS_SHORT.map((d,i) => {
+    const pct = maxDaySessions ? Math.round(sessionsByDay[i]/maxDaySessions*100) : 0;
+    const isTop = i === favDayIdx;
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;">
+      <div style="font-size:10px;color:${isTop?'var(--green)':'var(--muted)'};">${sessionsByDay[i]}</div>
+      <div style="width:100%;background:var(--bg3);border-radius:4px;height:60px;display:flex;align-items:flex-end;">
+        <div style="width:100%;background:${isTop?'var(--green)':'#333'};border-radius:4px;height:${pct}%;transition:height 0.4s;"></div>
+      </div>
+      <div style="font-size:10px;color:${isTop?'var(--green)':'var(--muted)'};">${d}</div>
+    </div>`;
+  }).join('');
+
+  // Day of week bar chart for calories
+  const maxDayCal = Math.max(...nutAvgByDay.map(d=>d.cal));
+  const calBars = DAYS_SHORT.map((d,i) => {
+    const pct = maxDayCal ? Math.round(nutAvgByDay[i].cal/maxDayCal*100) : 0;
+    const isTop = i === bestCalDay;
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;">
+      <div style="font-size:10px;color:${isTop?'#e879f9':'var(--muted)'};">${nutAvgByDay[i].cal||''}</div>
+      <div style="width:100%;background:var(--bg3);border-radius:4px;height:60px;display:flex;align-items:flex-end;">
+        <div style="width:100%;background:${isTop?'#e879f9':'#333'};border-radius:4px;height:${pct}%;transition:height 0.4s;"></div>
+      </div>
+      <div style="font-size:10px;color:${isTop?'#e879f9':'var(--muted)'};">${d}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('fun-stats-content').innerHTML = `
+
+    <div class="section-head">Training patterns</div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:10px;">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px;">Sessions by day of week · your gym days</div>
+      <div style="display:flex;gap:6px;align-items:flex-end;">${dayBars}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px;">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Favourite gym day</div>
+        <div style="font-family:var(--font-head);font-size:22px;font-weight:700;color:var(--green);">${DAYS[favDayIdx]}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:5px;">${sessionsByDay[favDayIdx]} sessions logged</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Longest training streak</div>
+        <div style="font-family:var(--font-head);font-size:22px;font-weight:700;color:var(--green);">${maxStreak} days</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:5px;">ending ${streakEnd||sessionDates[0]}</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Avg sessions/week</div>
+        <div style="font-family:var(--font-head);font-size:22px;font-weight:700;color:${parseFloat(avgSessionsPerWeek)>=4?'var(--green)':'var(--yellow)'};">${avgSessionsPerWeek}x</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:5px;">goal: 4x/week</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Days since last session</div>
+        <div style="font-family:var(--font-head);font-size:22px;font-weight:700;color:${daysSinceGym<=3?'var(--green)':daysSinceGym<=7?'var(--yellow)':'var(--red)'};">${daysSinceGym}d ago</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:5px;">last: ${lastSessionDate}</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Signature lift</div>
+        <div style="font-family:var(--font-head);font-size:16px;font-weight:700;color:var(--green);">${topEx[0]}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:5px;">${topEx[1]} sessions logged</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Sessions by phase</div>
+        <div style="font-size:12px;margin-top:4px;line-height:2;">
+          <span style="color:var(--green)">Bulk</span> ${phaseSessionCounts.bulk} &nbsp;
+          <span style="color:var(--red)">Cut</span> ${phaseSessionCounts.cut} &nbsp;
+          <span style="color:#60a5fa">Lean</span> ${phaseSessionCounts.lean}
+        </div>
+      </div>
+    </div>
+
+    <div class="section-head">Strength highlights</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px;">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Biggest single jump</div>
+        <div style="font-family:var(--font-head);font-size:22px;font-weight:700;color:var(--yellow);">+${biggestJump.jump} lbs</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:5px;">${biggestJump.ex} · ${biggestJump.from}→${biggestJump.to} lbs<br>${biggestJump.date}</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Most improved exercise</div>
+        <div style="font-family:var(--font-head);font-size:22px;font-weight:700;color:var(--green);">+${improvements[0].pct}%</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:5px;">${improvements[0].name}</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Total exercises tracked</div>
+        <div style="font-family:var(--font-head);font-size:22px;font-weight:700;color:var(--text);">${Object.keys(exCounts).length}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:5px;">${sessions.length} total sessions logged</div>
+      </div>
+      ${rustyExercises.length ? `
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;grid-column:span 3;">
+        <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">⚠ Haven't touched in 30+ days</div>
+        <div style="font-size:12px;color:var(--yellow);">${rustyExercises.join(' · ')}</div>
+      </div>` : ''}
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;grid-column:span 3;">
+        <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;">All exercises · % gain ranking</div>
+        ${improvements.map((ex,i) => `
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+            <div style="font-size:11px;color:var(--muted);width:20px;">#${i+1}</div>
+            <div style="font-size:12px;flex:1;">${ex.name}</div>
+            <div style="font-size:12px;color:var(--green);font-weight:600;width:50px;text-align:right;">+${ex.pct}%</div>
+            <div style="width:120px;height:4px;background:var(--bg3);border-radius:2px;">
+              <div style="height:100%;width:${Math.min(100,ex.pct/3)}%;background:var(--green);border-radius:2px;"></div>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <div class="section-head">Nutrition patterns</div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:10px;">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px;">Avg calories by day of week</div>
+      <div style="display:flex;gap:6px;align-items:flex-end;">${calBars}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px;">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Best protein day ever</div>
+        <div style="font-family:var(--font-head);font-size:22px;font-weight:700;color:var(--green);">${bestProtDay?.protein}g</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:5px;">${bestProtDay?.date}</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Protein goal streak</div>
+        <div style="font-family:var(--font-head);font-size:22px;font-weight:700;color:${bestProtStreak>=7?'var(--green)':'var(--yellow)'};">${bestProtStreak} days</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:5px;">hitting ≥155g in a row</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Nutrition days logged</div>
+        <div style="font-family:var(--font-head);font-size:22px;font-weight:700;color:var(--text);">${totalNutDays}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:5px;">days tracked total</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Highest cal day ever</div>
+        <div style="font-family:var(--font-head);font-size:22px;font-weight:700;color:#e879f9;">${Math.max(...nutrition.map(n=>n.calories||0))}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:5px;">${nutrition.sort((a,b)=>(b.calories||0)-(a.calories||0))[0]?.date}</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Best calorie day of week</div>
+        <div style="font-family:var(--font-head);font-size:22px;font-weight:700;color:#e879f9;">${DAYS[bestCalDay]}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:5px;">${nutAvgByDay[bestCalDay].cal} cal avg</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Best protein day of week</div>
+        <div style="font-family:var(--font-head);font-size:22px;font-weight:700;color:var(--green);">${DAYS[nutAvgByDay.indexOf(nutAvgByDay.reduce((b,d,i,a)=>d.prot>a[b].prot?i:b,0))]}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:5px;">${Math.max(...nutAvgByDay.map(d=>d.prot))}g avg</div>
+      </div>
+    </div>
+
+    <div class="section-head">Body weight</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px;">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Fastest weight gain</div>
+        <div style="font-family:var(--font-head);font-size:22px;font-weight:700;color:var(--green);">+${fastestGainWeek.gain} lbs</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:5px;">${fastestGainWeek.start} → ${fastestGainWeek.end}</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Total weight gained</div>
+        <div style="font-family:var(--font-head);font-size:22px;font-weight:700;color:var(--green);">+${bwSorted.length>1?(bwSorted[bwSorted.length-1].weight-bwSorted[0].weight).toFixed(1):'—'} lbs</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:5px;">${bwSorted[0]?.date} → now</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Weigh-ins logged</div>
+        <div style="font-family:var(--font-head);font-size:22px;font-weight:700;color:var(--text);">${bwSorted.length}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:5px;">entries total</div>
+      </div>
+    </div>
+  `;
+}
 // ══════════════════════════════════════════════
 // MOBILE NAV
 // ══════════════════════════════════════════════
 function mobNav(page, exName) {
   closeMobMore();
   // Update mob button states
-  ['dashboard','log','exercises','weight','weekly','nutrition'].forEach(p => {
+  ['dashboard','log','exercises','weight','weekly','stats','nutrition'].forEach(p => {
     const b = document.getElementById('mob-'+p);
     if (b) b.classList.remove('active');
   });
