@@ -1574,7 +1574,20 @@ function renderWeeklyHistoryTable() {
 // FUN STATS
 // ══════════════════════════════════════════════
 function renderFunStats() {
-  if (!dataReady) { setTimeout(renderFunStats, 300); return; }
+  if (!dataReady || !sessions.length) { 
+    setTimeout(renderFunStats, 400); 
+    return; 
+  }
+  try {
+    _renderFunStatsInner();
+  } catch(e) {
+    console.error('Fun stats error:', e);
+    document.getElementById('fun-stats-content').innerHTML = 
+      `<div style="color:var(--red);padding:20px;">Error loading stats: ${e.message}</div>`;
+  }
+}
+
+function _renderFunStatsInner() {
 
   const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   const DAYS_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -1838,7 +1851,7 @@ function renderFunStats() {
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;">
         <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Highest cal day ever</div>
         <div style="font-family:var(--font-head);font-size:22px;font-weight:700;color:#e879f9;">${Math.max(...nutrition.map(n=>n.calories||0))}</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:5px;">${nutrition.sort((a,b)=>(b.calories||0)-(a.calories||0))[0]?.date}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:5px;">${[...nutrition].sort((a,b)=>(b.calories||0)-(a.calories||0))[0]?.date}</div>
       </div>
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;">
         <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Best calorie day of week</div>
@@ -1871,7 +1884,7 @@ function renderFunStats() {
       </div>
     </div>
   `;
-}
+} // end _renderFunStatsInner
 // ══════════════════════════════════════════════
 // MOBILE NAV
 // ══════════════════════════════════════════════
