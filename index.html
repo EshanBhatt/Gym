@@ -499,6 +499,7 @@ let bodyweights = []; // [{id, date, weight, notes}]
 let activeExercise = null;
 let exChartInst = null;
 let bwChartInst = null;
+let dataReady = false;
 
 // ══════════════════════════════════════════════
 // PHASE — historical lookup + active phase override
@@ -596,6 +597,7 @@ async function loadData() {
     if (nutrition.length === 0) await seedNutrition();
     // Seed bodyweights with known historical data
     if (bodyweights.length === 0) await seedBodyweights();
+    dataReady = true;
     setSyncDot('ok');
     return true;
   } catch(err) {
@@ -1425,11 +1427,7 @@ function calcWeekData(start, end) {
 }
 
 function renderWeeklyReport() {
-  // Guard: if data not loaded yet, retry after short delay
-  if (!sessions.length && !nutrition.length) {
-    setTimeout(renderWeeklyReport, 500);
-    return;
-  }
+  if (!dataReady) { setTimeout(renderWeeklyReport, 300); return; }
 
   const { start, end } = getCurrentWeekBounds();
   const isSunday = new Date().getDay() === 0;
@@ -1441,7 +1439,6 @@ function renderWeeklyReport() {
   renderWeekLiveGrade(data, isSunday);
   renderWeeklyHistoryTable();
 
-  // Show lock button on Sunday if not already locked
   const alreadyLocked = weeklyHistory.some(w => w.start === start);
   document.getElementById('weekly-lock-wrap').style.display =
     (isSunday && !alreadyLocked) ? 'block' : 'none';
@@ -1466,12 +1463,12 @@ function renderWeekLiveGrade(data, isFinal) {
 
   // Category cards
   const cats = [
-    { label: 'Protein',   score: data.scores.protein,  detail: `${data.pAvg}g avg · goal ${GOALS.protein.target}g` },
-    { label: 'Carbs',     score: data.scores.carbs,    detail: `${data.cAvg}g avg · goal ${GOALS.carbs.target}g` },
-    { label: 'Fat',       score: data.scores.fat,      detail: `${data.fAvg}g avg · target ≤${GOALS.fat.target}g` },
-    { label: 'Sugar',     score: data.scores.sugar,    detail: `${data.sAvg}g avg · target ≤${GOALS.sugar.target}g` },
-    { label: 'Calories',  score: data.scores.calories, detail: `${data.calAvg} avg · goal ${GOALS.calories.target}` },
-    { label: 'Gym',       score: data.scores.gym,      detail: `${data.sessionCount} sessions · ${data.prsHit} PRs · ${data.overloadPct}% overload` },
+    { label: 'Protein',   score: data.nutDays ? data.scores.protein  : null, detail: data.nutDays ? `${data.pAvg}g avg · goal ${GOALS.protein.target}g` : 'No nutrition logged this week' },
+    { label: 'Carbs',     score: data.nutDays ? data.scores.carbs    : null, detail: data.nutDays ? `${data.cAvg}g avg · goal ${GOALS.carbs.target}g` : 'No nutrition logged this week' },
+    { label: 'Fat',       score: data.nutDays ? data.scores.fat      : null, detail: data.nutDays ? `${data.fAvg}g avg · target ≤${GOALS.fat.target}g` : 'No nutrition logged this week' },
+    { label: 'Sugar',     score: data.nutDays ? data.scores.sugar    : null, detail: data.nutDays ? `${data.sAvg}g avg · target ≤${GOALS.sugar.target}g` : 'No nutrition logged this week' },
+    { label: 'Calories',  score: data.nutDays ? data.scores.calories : null, detail: data.nutDays ? `${data.calAvg} avg · goal ${GOALS.calories.target}` : 'No nutrition logged this week' },
+    { label: 'Gym',       score: data.scores.gym, detail: `${data.sessionCount} sessions · ${data.prsHit} PRs · ${data.overloadPct}% overload` },
   ];
 
   document.getElementById('weekly-category-cards').innerHTML = cats.map(cat => {
