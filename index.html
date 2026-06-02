@@ -1312,11 +1312,20 @@ function saveWeeklyHistory() {
 
 // Get Sun–Sat week boundaries for a given date
 function getWeekBounds(d) {
-  const date = new Date(d);
-  const day = date.getDay(); // 0=Sun
-  const sun = new Date(date); sun.setDate(date.getDate() - day);
-  const sat = new Date(sun);  sat.setDate(sun.getDate() + 6);
-  const fmt = d => d.toISOString().split('T')[0];
+  // Use local date to avoid UTC timezone shifting the day
+  const date = d instanceof Date ? d : new Date(d);
+  const day = date.getDay(); // 0=Sun, 1=Mon ... 6=Sat
+  const sun = new Date(date);
+  sun.setDate(date.getDate() - day);
+  const sat = new Date(sun);
+  sat.setDate(sun.getDate() + 6);
+  // Format using local date parts, not UTC
+  const fmt = dt => {
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth()+1).padStart(2,'0');
+    const dd = String(dt.getDate()).padStart(2,'0');
+    return `${y}-${m}-${dd}`;
+  };
   return { start: fmt(sun), end: fmt(sat) };
 }
 
