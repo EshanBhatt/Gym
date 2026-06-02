@@ -1395,9 +1395,22 @@ function calcWeekData(start, end) {
   const gymScore      = Math.round(sessionScore + prScore + overloadScore);
 
   // Nutrition scores (0–100 each)
-  function nutScore(val, target, lowerIsBetter) {
+  function nutScore(val, target, lowerIsBetter, key) {
     if (!val) return 0;
     if (lowerIsBetter) {
+      // Custom scales for fat and sugar
+      if (key === 'sugar') {
+        if (val <= 35)  return 100; // A+
+        if (val <= 60)  return 85;  // B
+        if (val <= 100) return 72;  // C
+        if (val <= 150) return 60;  // D
+        return 40; // F
+      }
+      if (key === 'fat') {
+        if (val <= target)       return 100;
+        const over = (val - target) / target;
+        return Math.max(0, Math.round(100 - over * 80));
+      }
       if (val <= target) return 100;
       const over = (val - target) / target;
       return Math.max(0, Math.round(100 - over * 100));
@@ -1407,11 +1420,11 @@ function calcWeekData(start, end) {
   }
 
   const scores = {
-    protein:  nutScore(pAvg, GOALS.protein.target,  false),
-    carbs:    nutScore(cAvg, GOALS.carbs.target,     false),
-    fat:      nutScore(fAvg, GOALS.fat.target,       true),
-    sugar:    nutScore(sAvg, GOALS.sugar.target,     true),
-    calories: nutScore(calAvg, GOALS.calories.target,false),
+    protein:  nutScore(pAvg, GOALS.protein.target,  false, 'protein'),
+    carbs:    nutScore(cAvg, GOALS.carbs.target,     false, 'carbs'),
+    fat:      nutScore(fAvg, GOALS.fat.target,       true,  'fat'),
+    sugar:    nutScore(sAvg, GOALS.sugar.target,     true,  'sugar'),
+    calories: nutScore(calAvg, GOALS.calories.target,false, 'calories'),
     gym:      gymScore,
   };
 
@@ -1475,7 +1488,7 @@ function renderWeekLiveGrade(data, isFinal) {
     { label: 'Protein',   score: data.nutDays ? data.scores.protein  : null, detail: data.nutDays ? `${data.pAvg}g avg · goal ${GOALS.protein.target}g` : 'No nutrition logged this week' },
     { label: 'Carbs',     score: data.nutDays ? data.scores.carbs    : null, detail: data.nutDays ? `${data.cAvg}g avg · goal ${GOALS.carbs.target}g` : 'No nutrition logged this week' },
     { label: 'Fat',       score: data.nutDays ? data.scores.fat      : null, detail: data.nutDays ? `${data.fAvg}g avg · target ≤${GOALS.fat.target}g` : 'No nutrition logged this week' },
-    { label: 'Sugar',     score: data.nutDays ? data.scores.sugar    : null, detail: data.nutDays ? `${data.sAvg}g avg · target ≤${GOALS.sugar.target}g` : 'No nutrition logged this week' },
+    { label: 'Sugar',     score: data.nutDays ? data.scores.sugar    : null, detail: data.nutDays ? `${data.sAvg}g avg · A≤35 B≤60 C≤100 D≤150` : 'No nutrition logged this week' },
     { label: 'Calories',  score: data.nutDays ? data.scores.calories : null, detail: data.nutDays ? `${data.calAvg} avg · goal ${GOALS.calories.target}` : 'No nutrition logged this week' },
     { label: 'Gym',       score: data.scores.gym, detail: `${data.sessionCount} sessions · ${data.prsHit} PRs · ${data.overloadPct}% overload` },
   ];
