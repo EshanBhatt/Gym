@@ -1673,10 +1673,17 @@ function _renderFunStatsInner() {
     prot: d.n ? Math.round(d.prot/d.n) : 0,
     n: d.n
   }));
-  const bestCalDay  = nutAvgByDay.indexOf(nutAvgByDay.reduce((b,d,i,a)=>d.cal>a[b].cal?i:b, 0));
-  const worstCalDay = nutAvgByDay.indexOf(nutAvgByDay.filter(d=>d.n>0).reduce((best,d)=>{
-    return (d.cal < best.cal && d.n > 0) ? d : best;
-  }, {cal:99999,n:0}));
+
+  const daysWithData = nutAvgByDay.filter(d => d.n > 0);
+  const bestCalDay  = daysWithData.length
+    ? nutAvgByDay.indexOf(daysWithData.reduce((b,d) => d.cal > b.cal ? d : b))
+    : 0;
+  const worstCalDay = daysWithData.length
+    ? nutAvgByDay.indexOf(daysWithData.reduce((b,d) => d.cal < b.cal ? d : b))
+    : 0;
+  const bestProtDayIdx = daysWithData.length
+    ? nutAvgByDay.indexOf(daysWithData.reduce((b,d) => d.prot > b.prot ? d : b))
+    : 0;
 
   // Best protein day ever
   const bestProtDay = nutrition.slice().sort((a,b)=>(b.protein||0)-(a.protein||0))[0];
@@ -1860,8 +1867,8 @@ function _renderFunStatsInner() {
       </div>
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;">
         <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Best protein day of week</div>
-        <div style="font-family:var(--font-head);font-size:22px;font-weight:700;color:var(--green);">${DAYS[nutAvgByDay.indexOf(nutAvgByDay.reduce((b,d,i,a)=>d.prot>a[b].prot?i:b,0))]}</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:5px;">${Math.max(...nutAvgByDay.map(d=>d.prot))}g avg</div>
+        <div style="font-family:var(--font-head);font-size:22px;font-weight:700;color:var(--green);">${DAYS[bestProtDayIdx]}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:5px;">${nutAvgByDay[bestProtDayIdx].prot}g avg</div>
       </div>
     </div>
 
