@@ -87,8 +87,8 @@ canvas{max-height:260px;}
 .phase-btn.active-cut{background:var(--red-dim);color:var(--red);border-color:var(--red);}
 .phase-btn.active-lean{background:var(--blue-dim);color:#60a5fa;border-color:var(--blue);}
 .nut-bar{height:100%;border-radius:2px;transition:width 0.3s;}
-.page{display:none;}
-.page.active{display:block;}
+.page{display:none;visibility:hidden;position:absolute;pointer-events:none;}
+.page.active{display:block;visibility:visible;position:relative;pointer-events:auto;}
 .toast{position:fixed;bottom:24px;right:24px;background:var(--green);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;transform:translateY(60px);opacity:0;transition:all 0.3s;z-index:999;}
 .toast.show{transform:translateY(0);opacity:1;}
 .del-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px;transition:color 0.15s;}
