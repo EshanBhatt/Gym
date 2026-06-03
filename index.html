@@ -87,8 +87,8 @@ canvas{max-height:260px;}
 .phase-btn.active-cut{background:var(--red-dim);color:var(--red);border-color:var(--red);}
 .phase-btn.active-lean{background:var(--blue-dim);color:#60a5fa;border-color:var(--blue);}
 .nut-bar{height:100%;border-radius:2px;transition:width 0.3s;}
-.page{display:none;visibility:hidden;position:absolute;pointer-events:none;}
-.page.active{display:block;visibility:visible;position:relative;pointer-events:auto;}
+.page{display:none;}
+.page.active{display:block;}
 .toast{position:fixed;bottom:24px;right:24px;background:var(--green);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;transform:translateY(60px);opacity:0;transition:all 0.3s;z-index:999;}
 .toast.show{transform:translateY(0);opacity:1;}
 .del-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px;transition:color 0.15s;}
@@ -270,22 +270,15 @@ canvas{max-height:260px;}
       <button class="btn btn-primary" id="nut-btn" onclick="logNutrition()">+ Log Day</button>
     </div>
   </div>
-  <div class="section-head">This week · avg</div>
-  <div class="card-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:16px;">
-    <div class="card"><div class="card-label">Calories</div><div class="card-val" id="week-avg-calories" style="color:#e879f9">—</div><div class="card-sub" id="week-cal-days">0 days logged</div><div class="nut-bar-wrap"><div class="nut-bar" id="week-bar-calories" style="background:#e879f9"></div></div></div>
-    <div class="card"><div class="card-label">Protein</div><div class="card-val green" id="week-avg-protein">—</div><div class="card-sub">goal: 155g</div><div class="nut-bar-wrap"><div class="nut-bar" id="week-bar-protein" style="background:var(--green)"></div></div></div>
-    <div class="card"><div class="card-label">Carbs</div><div class="card-val blue" id="week-avg-carbs">—</div><div class="card-sub">goal: 400g</div><div class="nut-bar-wrap"><div class="nut-bar" id="week-bar-carbs" style="background:#60a5fa"></div></div></div>
-    <div class="card"><div class="card-label">Fat</div><div class="card-val yellow" id="week-avg-fat">—</div><div class="card-sub">target: ≤80g</div><div class="nut-bar-wrap"><div class="nut-bar" id="week-bar-fat" style="background:var(--yellow)"></div></div></div>
-    <div class="card"><div class="card-label">Sugar</div><div class="card-val red" id="week-avg-sugar">—</div><div class="card-sub">A≤35 B≤60 C≤100</div><div class="nut-bar-wrap"><div class="nut-bar" id="week-bar-sugar" style="background:var(--red)"></div></div></div>
-  </div>
-  <div class="section-head">All-time avg</div>
   <div class="card-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:24px;">
     <div class="card"><div class="card-label">Calories avg</div><div class="card-val" id="avg-calories" style="color:#e879f9">—</div><div class="card-sub">goal: 2800</div><div class="nut-bar-wrap"><div class="nut-bar" id="bar-calories" style="background:#e879f9"></div></div></div>
     <div class="card"><div class="card-label">Protein avg</div><div class="card-val green" id="avg-protein">—</div><div class="card-sub">goal: 155g</div><div class="nut-bar-wrap"><div class="nut-bar" id="bar-protein" style="background:var(--green)"></div></div></div>
     <div class="card"><div class="card-label">Carbs avg</div><div class="card-val blue" id="avg-carbs">—</div><div class="card-sub">goal: 400g</div><div class="nut-bar-wrap"><div class="nut-bar" id="bar-carbs" style="background:#60a5fa"></div></div></div>
     <div class="card"><div class="card-label">Fat avg</div><div class="card-val yellow" id="avg-fat">—</div><div class="card-sub">target: ≤80g</div><div class="nut-bar-wrap"><div class="nut-bar" id="bar-fat" style="background:var(--yellow)"></div></div></div>
     <div class="card"><div class="card-label">Sugar avg</div><div class="card-val red" id="avg-sugar">—</div><div class="card-sub">target: ≤60g</div><div class="nut-bar-wrap"><div class="nut-bar" id="bar-sugar" style="background:var(--red)"></div></div></div>
-  </div> style="margin-bottom:16px;">
+  </div>
+
+  <div class="chart-card" style="margin-bottom:16px;">
     <div class="chart-header"><div><div class="chart-title">Calories over time</div></div>
       <div style="display:flex;gap:8px;">
         <button class="btn" id="nut-range-btn" onclick="toggleNutRange()" style="padding:5px 12px;font-size:11px;background:var(--bg3);color:var(--muted);border:1px solid var(--border);">30 days</button>
@@ -341,7 +334,6 @@ canvas{max-height:260px;}
     <div class="card"><div class="card-label">Total Change</div><div class="card-val green" id="bw-pg-change">—</div><div class="card-sub" id="bw-pg-entries">lbs</div></div>
     <div class="card"><div class="card-label">Avg Rate</div><div class="card-val" id="bw-pg-rate">—</div><div class="card-sub">lbs/wk</div></div>
   </div>
-
   <div class="chart-card">
     <div class="chart-header"><div><div class="chart-title">Weight over time</div></div></div>
     <canvas id="bw-chart"></canvas>
@@ -1033,22 +1025,6 @@ function renderNutCharts() {
 
 function renderNutrition() {
   updateNutAvgs('nut');
-  // This week avg
-  const { start, end } = getCurrentWeekBounds();
-  const weekNut = nutrition.filter(n => n.date >= start && n.date <= end);
-  const wAvg = key => weekNut.length ? Math.round(weekNut.reduce((s,n)=>s+(n[key]||0),0)/weekNut.length) : 0;
-  const wCal=wAvg('calories'), wProt=wAvg('protein'), wCarbs=wAvg('carbs'), wFat=wAvg('fat'), wSugar=wAvg('sugar');
-  const wSet = (id,val,bid,cap,unit='g') => {
-    const e=document.getElementById(id); if(e) e.textContent=val+(unit==='g'?'g':'');
-    const b=document.getElementById(bid); if(b) b.style.width=Math.min(100,Math.round(val/cap*100))+'%';
-  };
-  const dEl = document.getElementById('week-cal-days');
-  if (dEl) dEl.textContent = weekNut.length + ' day' + (weekNut.length!==1?'s':'') + ' logged';
-  wSet('week-avg-calories', wCal, 'week-bar-calories', 2800, '');
-  wSet('week-avg-protein',  wProt,'week-bar-protein',  155);
-  wSet('week-avg-carbs',    wCarbs,'week-bar-carbs',   400);
-  wSet('week-avg-fat',      wFat, 'week-bar-fat',      80);
-  wSet('week-avg-sugar',    wSugar,'week-bar-sugar',   100);
   renderNutCharts();
   const sorted = nutrition.slice().sort((a,b)=>b.date.localeCompare(a.date));
   document.getElementById('nut-tbody').innerHTML = sorted.map(n=>
