@@ -1628,16 +1628,20 @@ function _renderFunStatsInner() {
   const topEx = Object.entries(exCounts).sort((a,b)=>b[1]-a[1])[0];
   const leastEx = Object.entries(exCounts).sort((a,b)=>a[1]-b[1])[0];
 
-  // Biggest single-session PR jump
-  let biggestJump = { ex:'', jump:0, date:'', from:0, to:0 };
+  // Heaviest lift ever (highest absolute e1RM across all exercises)
+  let heaviestLift = { ex:'', e1rm:0, date:'' };
   Object.keys(exCounts).forEach(name => {
-    const s = getExSessions(name);
-    for (let i=1; i<s.length; i++) {
-      const jump = s[i].e1rm - s[i-1].e1rm;
-      if (jump > biggestJump.jump) {
-        biggestJump = { ex:name, jump, date:s[i].date, from:s[i-1].e1rm, to:s[i].e1rm };
-      }
-    }
+    getExSessions(name).forEach(s => {
+      if (s.e1rm > heaviestLift.e1rm) heaviestLift = { ex:name, e1rm:s.e1rm, date:s.date };
+    });
+  });
+
+  // Best week ever (most unique session days in a Sun–Sat window)
+  let bestWeek = { count:0, start:'', end:'' };
+  sessionDates.forEach(dateStr => {
+    const bounds = getWeekBounds(new Date(dateStr+'T12:00:00'));
+    const count = new Set(sessionDates.filter(d => d >= bounds.start && d <= bounds.end)).size;
+    if (count > bestWeek.count) bestWeek = { count, start:bounds.start, end:bounds.end };
   });
 
   // Most improved exercise by %
@@ -1801,9 +1805,14 @@ function _renderFunStatsInner() {
     <div class="section-head">Strength highlights</div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px;">
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;">
-        <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Biggest single jump</div>
-        <div style="font-family:var(--font-head);font-size:22px;font-weight:700;color:var(--yellow);">+${biggestJump.jump} lbs</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:5px;">${biggestJump.ex} · ${biggestJump.from}→${biggestJump.to} lbs<br>${biggestJump.date}</div>
+        <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Best week ever</div>
+        <div style="font-family:var(--font-head);font-size:22px;font-weight:700;color:var(--green);">${bestWeek.count} sessions</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:5px;">${bestWeek.start} – ${bestWeek.end}</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Heaviest lift ever</div>
+        <div style="font-family:var(--font-head);font-size:22px;font-weight:700;color:var(--yellow);">${heaviestLift.e1rm} lbs</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:5px;">${heaviestLift.ex}<br>${heaviestLift.date}</div>
       </div>
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;">
         <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Most improved exercise</div>
