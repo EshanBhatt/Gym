@@ -1322,7 +1322,15 @@ const GOALS = {
   gym:      { target: 4,   weight: 0.35, lowerIsBetter: false }, // sessions + PR + overload
 };
 
-let weeklyHistory = JSON.parse(localStorage.getItem('weeklyHistory') || '[]');
+// Only keep grade history from last week onwards — older entries cleared on load
+const _now = new Date();
+const _mtStr = _now.toLocaleString('en-US', { timeZone: 'America/Denver' });
+const _mt = new Date(_mtStr);
+const _lastSun = new Date(_mt); _lastSun.setDate(_mt.getDate() - _mt.getDay() - 7);
+const _lastWeekStart = `${_lastSun.getFullYear()}-${String(_lastSun.getMonth()+1).padStart(2,'0')}-${String(_lastSun.getDate()).padStart(2,'0')}`;
+let weeklyHistory = JSON.parse(localStorage.getItem('weeklyHistory') || '[]').filter(w => w.start >= _lastWeekStart);
+// Save immediately to persist the trim
+localStorage.setItem('weeklyHistory', JSON.stringify(weeklyHistory));
 
 function saveWeeklyHistory() {
   localStorage.setItem('weeklyHistory', JSON.stringify(weeklyHistory));
