@@ -1466,22 +1466,93 @@ function calcWeekData(start, end) {
   };
 }
 
+function getMTDate() {
+  // Get current date/time in Mountain Time (UTC-7 MDT / UTC-6 MST)
+  // Use Intl to get accurate local MT time
+  const now = new Date();
+  const mtStr = now.toLocaleString('en-US', { timeZone: 'America/Denver' });
+  return new Date(mtStr);
+}
+
+function getWeekBoundsForDate(d) {
+  const day = d.getDay(); // 0=Sun
+  const sun = new Date(d);
+  sun.setDate(d.getDate() - day);
+  sun.setHours(0,0,0,0);
+  const sat = new Date(sun);
+  sat.setDate(sun.getDate() + 6);
+  const fmt = dt => {
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth()+1).padStart(2,'0');
+    const dd = String(dt.getDate()).padStart(2,'0');
+    return `${y}-${m}-${dd}`;
+  };
+  return { start: fmt(sun), end: fmt(sat) };
+}
+
+function getPreviousWeekBounds() {
+  const mt = getMTDate();
+  const prevSat = new Date(mt);
+  prevSat.setDate(mt.getDate() - mt.getDay() - 1); // go back to last Saturday
+  return getWeekBoundsForDate(new Date(prevSat.getFullYear(), prevSat.getMonth(), prevSat.getDate() - 6));
+}
+
+function autoLockPastWeeks() {
+  // Check if any completed weeks (ended Sat) are not yet locked
+  const mt = getMTDate();
+  const todayStr = (() => {
+    const y = mt.getFullYear(), m = String(mt.getMonth()+1).padStart(2,'0'), d = String(mt.getDate()).padStart(2,'0');
+    return `${y}-${m}-${d}`;
+  })();
+
+  // Get all unique week starts from session + nutrition data
+  const allDates = [
+    ...sessions.map(s => s.date),
+    ...nutrition.map(n => n.date)
+  ];
+
+  const weekStarts = new Set();
+  allDates.forEach(dateStr => {
+    const d = new Date(dateStr + 'T12:00:00');
+    const bounds = getWeekBoundsForDate(d);
+    weekStarts.add(bounds.start);
+  });
+
+  weekStarts.forEach(start => {
+    // Get end of this week (Saturday)
+    const startD = new Date(start + 'T12:00:00');
+    const bounds = getWeekBoundsForDate(startD);
+    // Only auto-lock if Saturday has fully passed (i.e. end < today in MT)
+    if (bounds.end < todayStr && !weeklyHistory.some(w => w.start === bounds.start)) {
+      const data = calcWeekData(bounds.start, bounds.end);
+      weeklyHistory.push({ ...data, locked: new Date().toISOString(), auto: true });
+    }
+  });
+
+  // Sort history newest first
+  weeklyHistory.sort((a, b) => b.start.localeCompare(a.start));
+  saveWeeklyHistory();
+}
+
 function renderWeeklyReport() {
   if (!dataReady) { setTimeout(renderWeeklyReport, 300); return; }
 
-  const { start, end } = getCurrentWeekBounds();
-  const isSunday = new Date().getDay() === 0;
+  // Auto-lock any past completed weeks
+  autoLockPastWeeks();
+
+  const mt = getMTDate();
+  const { start, end } = getWeekBoundsForDate(mt);
+  const daysLeft = 6 - mt.getDay(); // days until end of week (Sat)
 
   document.getElementById('weekly-range-label').textContent =
-    `${start} – ${end} · ${isSunday ? 'Final grade day!' : 'Live grading'}`;
+    `${start} – ${end} · Live grading · ${daysLeft} day${daysLeft!==1?'s':''} remaining`;
 
   const data = calcWeekData(start, end);
-  renderWeekLiveGrade(data, isSunday);
+  renderWeekLiveGrade(data, false);
   renderWeeklyHistoryTable();
 
-  const alreadyLocked = weeklyHistory.some(w => w.start === start);
-  document.getElementById('weekly-lock-wrap').style.display =
-    (isSunday && !alreadyLocked) ? 'block' : 'none';
+  // Hide lock button — auto-lock handles it
+  document.getElementById('weekly-lock-wrap').style.display = 'none';
 }
 
 function renderWeekLiveGrade(data, isFinal) {
@@ -1491,7 +1562,7 @@ function renderWeekLiveGrade(data, isFinal) {
   el.style.color = grade.color;
 
   document.getElementById('weekly-overall-score').textContent =
-    `${data.overall}/100 · ${isFinal ? 'Final grade' : 'with ' + (7 - new Date().getDay()) + ' day(s) remaining'}`;
+    `${data.overall}/100 · ${6 - getMTDate().getDay()} day(s) remaining this week`;
 
   // Status message
   const msgs = [];
@@ -1527,7 +1598,8 @@ function renderWeekLiveGrade(data, isFinal) {
 }
 
 async function lockWeek() {
-  const { start, end } = getCurrentWeekBounds();
+  const mt = getMTDate();
+  const { start, end } = getWeekBoundsForDate(mt);
   if (weeklyHistory.some(w => w.start === start)) { showToast('Week already locked'); return; }
   const data = calcWeekData(start, end);
   weeklyHistory.unshift({ ...data, locked: new Date().toISOString() });
@@ -1547,7 +1619,7 @@ function deleteWeeklyEntry(start) {
 function renderWeeklyHistoryTable() {
   const tbody = document.getElementById('weekly-history-tbody');
   if (!weeklyHistory.length) {
-    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:24px;">No locked weeks yet — come back Sunday to lock your first grade.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:24px;">No completed weeks yet — past weeks auto-save at end of Saturday.</td></tr>`;
     return;
   }
   tbody.innerHTML = weeklyHistory.map(w => {
