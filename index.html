@@ -1507,14 +1507,13 @@ function getPreviousWeekBounds() {
 }
 
 function autoLockPastWeeks() {
-  // Check if any completed weeks (ended Sat) are not yet locked
+  // Just track WHICH weeks are "locked" (completed) — dates only, not static data
   const mt = getMTDate();
   const todayStr = (() => {
     const y = mt.getFullYear(), m = String(mt.getMonth()+1).padStart(2,'0'), d = String(mt.getDate()).padStart(2,'0');
     return `${y}-${m}-${d}`;
   })();
 
-  // Get all unique week starts from session + nutrition data
   const allDates = [
     ...sessions.map(s => s.date),
     ...nutrition.map(n => n.date)
@@ -1522,23 +1521,18 @@ function autoLockPastWeeks() {
 
   const weekStarts = new Set();
   allDates.forEach(dateStr => {
-    const d = new Date(dateStr + 'T12:00:00');
-    const bounds = getWeekBoundsForDate(d);
+    const bounds = getWeekBoundsForDate(new Date(dateStr + 'T12:00:00'));
     weekStarts.add(bounds.start);
   });
 
   weekStarts.forEach(start => {
-    // Get end of this week (Saturday)
-    const startD = new Date(start + 'T12:00:00');
-    const bounds = getWeekBoundsForDate(startD);
-    // Only auto-lock if Saturday has fully passed (i.e. end < today in MT)
+    const bounds = getWeekBoundsForDate(new Date(start + 'T12:00:00'));
+    // Only track completed weeks (Saturday has passed)
     if (bounds.end < todayStr && !weeklyHistory.some(w => w.start === bounds.start)) {
-      const data = calcWeekData(bounds.start, bounds.end);
-      weeklyHistory.push({ ...data, locked: new Date().toISOString(), auto: true });
+      weeklyHistory.push({ start: bounds.start, end: bounds.end, locked: new Date().toISOString() });
     }
   });
 
-  // Sort history newest first
   weeklyHistory.sort((a, b) => b.start.localeCompare(a.start));
   saveWeeklyHistory();
 }
@@ -1610,11 +1604,11 @@ async function lockWeek() {
   const mt = getMTDate();
   const { start, end } = getWeekBoundsForDate(mt);
   if (weeklyHistory.some(w => w.start === start)) { showToast('Week already locked'); return; }
-  const data = calcWeekData(start, end);
-  weeklyHistory.unshift({ ...data, locked: new Date().toISOString() });
+  weeklyHistory.unshift({ start, end, locked: new Date().toISOString() });
   saveWeeklyHistory();
   document.getElementById('weekly-lock-wrap').style.display = 'none';
   renderWeeklyHistoryTable();
+  const data = calcWeekData(start, end);
   showToast('✓ Week locked — ' + scoreToGrade(data.overall).letter);
 }
 
@@ -1631,20 +1625,22 @@ function renderWeeklyHistoryTable() {
     tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:24px;">No completed weeks yet — past weeks auto-save at end of Saturday.</td></tr>`;
     return;
   }
+  // Always recalculate live from Supabase data so edits to past entries are reflected
   tbody.innerHTML = weeklyHistory.map(w => {
-    const g = scoreToGrade(w.overall);
-    const sg = scoreToGrade(w.scores.gym);
+    const data = calcWeekData(w.start, w.end); // live recalc
+    const g  = scoreToGrade(data.overall);
+    const sg = scoreToGrade(data.scores.gym);
     return `<tr>
       <td style="white-space:nowrap;color:var(--muted)">${w.start} – ${w.end}</td>
       <td><span style="font-family:var(--font-head);font-size:18px;font-weight:800;color:${g.color}">${g.letter}</span></td>
-      <td style="color:${g.color};font-weight:600;">${w.overall}/100</td>
-      <td class="green">${w.pAvg}g</td>
-      <td class="blue">${w.cAvg}g</td>
-      <td class="yellow">${w.fAvg}g</td>
-      <td style="color:#e879f9">${w.calAvg}</td>
+      <td style="color:${g.color};font-weight:600;">${data.overall}/100</td>
+      <td class="green">${data.pAvg}g</td>
+      <td class="blue">${data.cAvg}g</td>
+      <td class="yellow">${data.fAvg}g</td>
+      <td style="color:#e879f9">${data.calAvg}</td>
       <td><span style="font-family:var(--font-head);font-size:14px;font-weight:700;color:${sg.color}">${sg.letter}</span></td>
-      <td style="color:var(--muted)">${w.sessionCount}/${GOALS.gym.target}</td>
-      <td style="color:var(--yellow)">${w.prsHit} 🏆</td>
+      <td style="color:var(--muted)">${data.sessionCount}/${GOALS.gym.target}</td>
+      <td style="color:var(--yellow)">${data.prsHit} 🏆</td>
       <td><button class="del-btn" onclick="deleteWeeklyEntry('${w.start}')">✕</button></td>
     </tr>`;
   }).join('');
