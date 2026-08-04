@@ -53,7 +53,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-si
 .section-head::after{content:'';flex:1;height:1px;background:var(--border);}
 .table-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:24px;}
 table{width:100%;border-collapse:collapse;}
-th{text-align:left;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);padding:10px 16px;background:var(--bg3);border-bottom:1px solid var(--border);font-weight:400;}
+th{text-align:left;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);padding:10px 16px;background:var(--bg3);border-bottom:1px solid var(--border);font-weight:400;position:sticky;top:0;z-index:2;}
 td{padding:10px 16px;border-bottom:1px solid var(--border);font-size:12px;}
 tr:last-child td{border-bottom:none;}
 tr:hover td{background:var(--bg3);}
@@ -206,7 +206,8 @@ canvas{max-height:260px;}
     <div class="form-row">
       <div class="form-group">
         <label>Exercise</label>
-        <select id="log-exercise" style="min-width:200px;"></select>
+        <select id="log-exercise" style="min-width:200px;" onchange="updateLogHint()"></select>
+        <div id="log-hint" style="font-size:11px;color:var(--muted);min-height:14px;"></div>
       </div>
       <div class="form-group">
         <label>Date</label>
@@ -214,7 +215,7 @@ canvas{max-height:260px;}
       </div>
       <div class="form-group">
         <label>e1RM (lbs)</label>
-        <input type="number" id="log-e1rm" placeholder="e.g. 135" style="width:130px;" step="0.5">
+        <input type="number" inputmode="decimal" id="log-e1rm" placeholder="e.g. 135" style="width:130px;" step="0.5">
       </div>
       <div class="form-group">
         <label>Notes (optional)</label>
@@ -262,14 +263,23 @@ canvas{max-height:260px;}
   <div class="log-form">
     <div class="form-row">
       <div class="form-group"><label>Date</label><input type="date" id="nut-date"></div>
-      <div class="form-group"><label>Protein (g)</label><input type="number" id="nut-protein" placeholder="0" style="width:90px;"></div>
-      <div class="form-group"><label>Carbs (g)</label><input type="number" id="nut-carbs" placeholder="0" style="width:90px;"></div>
-      <div class="form-group"><label>Fat (g)</label><input type="number" id="nut-fat" placeholder="0" style="width:90px;"></div>
-      <div class="form-group"><label>Sugar (g)</label><input type="number" id="nut-sugar" placeholder="0" style="width:90px;"></div>
-      <div class="form-group"><label>Calories</label><input type="number" id="nut-calories" placeholder="0" style="width:90px;"></div>
+      <div class="form-group"><label>Protein (g)</label><input type="number" inputmode="numeric" id="nut-protein" placeholder="0" style="width:90px;"></div>
+      <div class="form-group"><label>Carbs (g)</label><input type="number" inputmode="numeric" id="nut-carbs" placeholder="0" style="width:90px;"></div>
+      <div class="form-group"><label>Fat (g)</label><input type="number" inputmode="numeric" id="nut-fat" placeholder="0" style="width:90px;"></div>
+      <div class="form-group"><label>Sugar (g)</label><input type="number" inputmode="numeric" id="nut-sugar" placeholder="0" style="width:90px;"></div>
+      <div class="form-group"><label>Calories</label><input type="number" inputmode="numeric" id="nut-calories" placeholder="0" style="width:90px;"></div>
       <button class="btn btn-primary" id="nut-btn" onclick="logNutrition()">+ Log Day</button>
     </div>
   </div>
+  <div class="section-head">This week · avg</div>
+  <div class="card-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:16px;">
+    <div class="card"><div class="card-label">Calories</div><div class="card-val" id="week-avg-calories" style="color:#e879f9">—</div><div class="card-sub" id="week-cal-days">0 days logged</div><div class="nut-bar-wrap"><div class="nut-bar" id="week-bar-calories" style="background:#e879f9"></div></div></div>
+    <div class="card"><div class="card-label">Protein</div><div class="card-val green" id="week-avg-protein">—</div><div class="card-sub">goal: 155g</div><div class="nut-bar-wrap"><div class="nut-bar" id="week-bar-protein" style="background:var(--green)"></div></div></div>
+    <div class="card"><div class="card-label">Carbs</div><div class="card-val blue" id="week-avg-carbs">—</div><div class="card-sub">goal: 400g</div><div class="nut-bar-wrap"><div class="nut-bar" id="week-bar-carbs" style="background:#60a5fa"></div></div></div>
+    <div class="card"><div class="card-label">Fat</div><div class="card-val yellow" id="week-avg-fat">—</div><div class="card-sub">target: ≤80g</div><div class="nut-bar-wrap"><div class="nut-bar" id="week-bar-fat" style="background:var(--yellow)"></div></div></div>
+    <div class="card"><div class="card-label">Sugar</div><div class="card-val red" id="week-avg-sugar">—</div><div class="card-sub">A≤35 B≤60 C≤100</div><div class="nut-bar-wrap"><div class="nut-bar" id="week-bar-sugar" style="background:var(--red)"></div></div></div>
+  </div>
+  <div class="section-head">All-time avg</div>
   <div class="card-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:24px;">
     <div class="card"><div class="card-label">Calories avg</div><div class="card-val" id="avg-calories" style="color:#e879f9">—</div><div class="card-sub">goal: 2800</div><div class="nut-bar-wrap"><div class="nut-bar" id="bar-calories" style="background:#e879f9"></div></div></div>
     <div class="card"><div class="card-label">Protein avg</div><div class="card-val green" id="avg-protein">—</div><div class="card-sub">goal: 155g</div><div class="nut-bar-wrap"><div class="nut-bar" id="bar-protein" style="background:var(--green)"></div></div></div>
@@ -323,7 +333,7 @@ canvas{max-height:260px;}
   <div class="log-form">
     <div class="form-row">
       <div class="form-group"><label>Date</label><input type="date" id="bw-date"></div>
-      <div class="form-group"><label>Weight (lbs)</label><input type="number" id="bw-input" placeholder="e.g. 183.5" style="width:140px;" step="0.1"></div>
+      <div class="form-group"><label>Weight (lbs)</label><input type="number" inputmode="decimal" id="bw-input" placeholder="e.g. 183.5" style="width:140px;" step="0.1"></div>
       <div class="form-group"><label>Notes (optional)</label><input type="text" id="bw-notes" placeholder="morning, post-workout..." style="width:180px;"></div>
       <button class="btn btn-primary" id="bw-btn" onclick="logWeight()">+ Log Weight</button>
     </div>
@@ -681,26 +691,61 @@ function showPage(page, exName) {
 // ══════════════════════════════════════════════
 // SIDEBAR NAV
 // ══════════════════════════════════════════════
+const WORKOUT_CATS = {
+  'Shouldey Army': ['Shoulder Press','Tricep Pushdown (Cable)','Lateral Raise (Machine)','Reverse Fly (Machine)','SA Reverse Fly (Cable)','Preacher Curl'],
+  'Chesty Backy':  ['Iso-Lateral Chest Press','Iso Lateral Row (Machine)','Incline Bench Press (Machine)','Chest Fly (Machine)','Incline Bench Press (Dumbbell)'],
+  'Leggies':       ['Standing Calf Raise (Machine)','Seated Leg Press','Leg Curl (Machine)','Leg Extension Machine','Prone Leg Curl'],
+  'Retired':       ['Tricep Extension (Machine)'],
+};
+const CAT_COLORS = {'Shouldey Army':'#a78bfa','Chesty Backy':'#f472b6','Leggies':'#34d399','Retired':'#666666','Other':'#888780'};
+const CAT_ORDER = ['Shouldey Army','Chesty Backy','Leggies','Other','Retired'];
+function getExCategory(name) {
+  for (const cat of Object.keys(WORKOUT_CATS)) {
+    if (WORKOUT_CATS[cat].includes(name)) return cat;
+  }
+  return 'Other';
+}
+function sortWithinCat(names, cat) {
+  const order = WORKOUT_CATS[cat] || [];
+  return names.slice().sort((a,b) => {
+    const ai = order.indexOf(a), bi = order.indexOf(b);
+    if (ai === -1 && bi === -1) return a.localeCompare(b);
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
+}
+
 function buildNav() {
-  const exNames = [...new Set(sessions.map(s=>s.exercise))].sort();
+  const exNames = [...new Set(sessions.map(s=>s.exercise))];
   const nav = document.getElementById('ex-nav');
   nav.innerHTML = '';
-  exNames.forEach(name => {
-    const exSessions = sessions.filter(s=>s.exercise===name).sort((a,b)=>a.date.localeCompare(b.date));
-    const phase = exSessions.length ? getPhase(exSessions[exSessions.length-1].date) : 'lean';
-    const colors = {bulk:'var(--green)',cut:'var(--red)',lean:'#60a5fa'};
-    const el = document.createElement('div');
-    el.className = 'nav-item';
-    el.dataset.ex = name;
-    el.innerHTML = `<div class="nav-dot" style="background:${colors[phase]}"></div>${name}`;
-    el.onclick = () => showPage('exercise', name);
-    nav.appendChild(el);
+  CAT_ORDER.forEach(cat => {
+    const catExs = sortWithinCat(exNames.filter(n => getExCategory(n) === cat), cat);
+    if (!catExs.length) return;
+    const header = document.createElement('div');
+    header.style.cssText = 'padding:12px 20px 5px;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:' + (CAT_COLORS[cat]||'var(--muted)') + ';';
+    header.textContent = cat;
+    nav.appendChild(header);
+    catExs.forEach(name => {
+      const el = document.createElement('div');
+      el.className = 'nav-item';
+      el.dataset.ex = name;
+      el.innerHTML = `<div class="nav-dot" style="background:${CAT_COLORS[cat]}"></div>${name}`;
+      el.onclick = () => showPage('exercise', name);
+      nav.appendChild(el);
+    });
   });
-  // Populate exercise select
+  // Populate exercise select — grouped by workout
   const sel = document.getElementById('log-exercise');
   const cur = sel.value;
-  sel.innerHTML = exNames.map(n=>`<option value="${n}">${n}</option>`).join('');
-  if (cur) sel.value = cur;
+  sel.innerHTML = CAT_ORDER.map(cat => {
+    const catExs = sortWithinCat(exNames.filter(n => getExCategory(n) === cat), cat);
+    if (!catExs.length) return '';
+    return `<optgroup label="${cat}">` + catExs.map(n=>`<option value="${n}">${n}</option>`).join('') + '</optgroup>';
+  }).join('');
+  if (cur && exNames.includes(cur)) sel.value = cur;
+  updateLogHint();
 }
 
 function getExSessions(name) {
@@ -724,8 +769,9 @@ function renderDashboard() {
   document.getElementById('dash-tbody').innerHTML = rows.map(r => {
     const bw = Math.min(100, Math.round(r.pct/260*100));
     const prMark = r.pr === r.last ? ' 🏆' : '';
+    const _cat = getExCategory(r.name);
     return `<tr onclick="showPage('exercise','${r.name.replace(/'/g,"\\'")}')" style="cursor:pointer">
-      <td><strong>${r.name}</strong></td>
+      <td><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${CAT_COLORS[_cat]};margin-right:8px;vertical-align:middle;"></span><strong>${r.name}</strong></td>
       <td style="color:var(--muted)">${r.first} lbs</td>
       <td><strong>${r.last} lbs${prMark}</strong></td>
       <td style="color:var(--yellow);font-weight:600;">${r.pr} lbs</td>
@@ -740,12 +786,30 @@ function renderDashboard() {
 // ══════════════════════════════════════════════
 // LOG SESSION
 // ══════════════════════════════════════════════
+function updateLogHint() {
+  const hint = document.getElementById('log-hint');
+  const sel  = document.getElementById('log-exercise');
+  if (!hint || !sel || !sel.value) { if (hint) hint.textContent = ''; return; }
+  const s = getExSessions(sel.value);
+  if (!s.length) { hint.textContent = 'No sessions yet — first one!'; return; }
+  const last = s[s.length-1];
+  const pr = Math.max(...s.map(x => x.e1rm));
+  hint.innerHTML = `Last: <span style="color:var(--text)">${last.e1rm} lbs</span> on ${last.date} · PR: <span style="color:var(--yellow)">${pr} lbs</span>`;
+  const inp = document.getElementById('log-e1rm');
+  if (inp) inp.placeholder = String(last.e1rm);
+}
+
 async function logSession() {
   const exercise = document.getElementById('log-exercise').value;
   const date     = document.getElementById('log-date').value;
   const e1rm     = parseFloat(document.getElementById('log-e1rm').value);
   const notes    = document.getElementById('log-notes').value.trim();
   if (!exercise||!date||isNaN(e1rm)) { showToast('Fill in exercise, date, and e1RM', true); return; }
+
+  // PR check BEFORE inserting
+  const prevSessions = getExSessions(exercise);
+  const prevPR = prevSessions.length ? Math.max(...prevSessions.map(x => x.e1rm)) : 0;
+  const isNewPR = e1rm > prevPR && prevSessions.length > 0;
 
   const btn = document.getElementById('log-btn');
   btn.disabled = true; btn.textContent = 'Saving...';
@@ -759,7 +823,11 @@ async function logSession() {
     document.getElementById('log-notes').value = '';
     buildNav();
     renderLog();
-    showToast(`✓ ${exercise} — ${e1rm} lbs saved`);
+    if (isNewPR) {
+      showToast(`🏆 NEW PR! ${exercise} — ${e1rm} lbs (was ${prevPR})`);
+    } else {
+      showToast(`✓ ${exercise} — ${e1rm} lbs saved`);
+    }
     setSyncDot('ok');
   }
   btn.disabled = false; btn.textContent = '+ Log Session';
@@ -1025,6 +1093,23 @@ function renderNutCharts() {
 
 function renderNutrition() {
   updateNutAvgs('nut');
+  // This week averages
+  try {
+    const wb = getWeekBoundsForDate(getMTDate());
+    const weekNut = nutrition.filter(n => n.date >= wb.start && n.date <= wb.end);
+    const wAvg = k => weekNut.length ? Math.round(weekNut.reduce((s,n)=>s+(n[k]||0),0)/weekNut.length) : 0;
+    const wSet = (id,val,bid,cap,suffix) => {
+      const e = document.getElementById(id); if (e) e.textContent = val ? val + (suffix||'g') : '—';
+      const b = document.getElementById(bid); if (b) b.style.width = Math.min(100, Math.round(val/cap*100)) + '%';
+    };
+    const dEl = document.getElementById('week-cal-days');
+    if (dEl) dEl.textContent = weekNut.length + ' day' + (weekNut.length!==1?'s':'') + ' logged';
+    wSet('week-avg-calories', wAvg('calories'), 'week-bar-calories', 2800, '');
+    wSet('week-avg-protein',  wAvg('protein'),  'week-bar-protein',  155);
+    wSet('week-avg-carbs',    wAvg('carbs'),    'week-bar-carbs',    400);
+    wSet('week-avg-fat',      wAvg('fat'),      'week-bar-fat',      80);
+    wSet('week-avg-sugar',    wAvg('sugar'),    'week-bar-sugar',    100);
+  } catch(e) { console.error('week avg error', e); }
   renderNutCharts();
   const sorted = nutrition.slice().sort((a,b)=>b.date.localeCompare(a.date));
   document.getElementById('nut-tbody').innerHTML = sorted.map(n=>
@@ -1998,17 +2083,21 @@ function toggleMobMore() {
   const isOpen = panel.classList.contains('open');
   if (isOpen) { closeMobMore(); return; }
   // Build exercise list
-  const exNames = [...new Set(sessions.map(s=>s.exercise))].sort();
-  const phaseColors = {bulk:'var(--green)',cut:'var(--red)',lean:'#60a5fa'};
-  document.getElementById('mob-ex-list').innerHTML = exNames.map(name => {
-    const s = getExSessions(name);
-    const phase = s.length ? getPhase(s[s.length-1].date) : 'lean';
-    const last = s.length ? s[s.length-1].e1rm : '—';
-    return `<div class="mob-ex-item" onclick="mobNav('exercise','${name.replace(/'/g,"\\'")}')">
-      <div style="width:8px;height:8px;border-radius:50%;background:${phaseColors[phase]};flex-shrink:0"></div>
-      <div style="flex:1">${name}</div>
-      <div style="color:var(--muted);font-size:11px">${last} lbs</div>
-    </div>`;
+  const exNames = [...new Set(sessions.map(s=>s.exercise))];
+  document.getElementById('mob-ex-list').innerHTML = CAT_ORDER.map(cat => {
+    const catExs = sortWithinCat(exNames.filter(n => getExCategory(n) === cat), cat);
+    if (!catExs.length) return '';
+    const cc = CAT_COLORS[cat];
+    const header = `<div style="padding:10px 20px 4px;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;color:${cc};background:var(--bg3);">${cat}</div>`;
+    return header + catExs.map(name => {
+      const s = getExSessions(name);
+      const last = s.length ? s[s.length-1].e1rm : '—';
+      return `<div class="mob-ex-item" onclick="mobNav('exercise','${name.replace(/'/g,"\\'")}')">
+        <div style="width:8px;height:8px;border-radius:50%;background:${cc};flex-shrink:0"></div>
+        <div style="flex:1">${name}</div>
+        <div style="color:var(--muted);font-size:11px">${last} lbs</div>
+      </div>`;
+    }).join('');
   }).join('');
   panel.classList.add('open');
   document.getElementById('mob-exercises').classList.add('active');
