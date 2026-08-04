@@ -721,18 +721,10 @@ function renderDashboard() {
     return { name, first, last, pr, pct, count: s.length, phase: getPhase(s[s.length-1].date) };
   }).filter(Boolean).sort((a,b)=>b.pct-a.pct);
 
-  let _lastCat2 = null;
   document.getElementById('dash-tbody').innerHTML = rows.map(r => {
     const bw = Math.min(100, Math.round(r.pct/260*100));
     const prMark = r.pr === r.last ? ' 🏆' : '';
-    const cat = getExCategory(r.name);
-    const catColor = CAT_COLORS[cat] || 'var(--muted)';
-    let header = '';
-    if (cat !== _lastCat2) {
-      _lastCat2 = cat;
-      header = `<tr style="background:var(--bg3);pointer-events:none;"><td colspan="7" style="padding:8px 16px;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:${catColor};font-weight:600;">${cat}</td></tr>`;
-    }
-    return header + `<tr onclick="showPage('exercise','${r.name.replace(/'/g,"\\'")}')" style="cursor:pointer">
+    return `<tr onclick="showPage('exercise','${r.name.replace(/'/g,"\\'")}')" style="cursor:pointer">
       <td><strong>${r.name}</strong></td>
       <td style="color:var(--muted)">${r.first} lbs</td>
       <td><strong>${r.last} lbs${prMark}</strong></td>
@@ -2006,30 +1998,17 @@ function toggleMobMore() {
   const isOpen = panel.classList.contains('open');
   if (isOpen) { closeMobMore(); return; }
   // Build exercise list
-  const allMobNames = [...new Set(sessions.map(s=>s.exercise))];
-  const mobCatOrder = ['Shouldey Army','Chesty Backy','Leggies','Retired','Other'];
-  document.getElementById('mob-ex-list').innerHTML = mobCatOrder.map(cat => {
-    const catExs = allMobNames.filter(n => getExCategory(n) === cat);
-    if (!catExs.length) return '';
-    const catOrder2 = WORKOUT_CATS[cat] || [];
-    catExs.sort((a,b) => {
-      const ai = catOrder2.indexOf(a), bi = catOrder2.indexOf(b);
-      if (ai === -1 && bi === -1) return a.localeCompare(b);
-      if (ai === -1) return 1; if (bi === -1) return -1;
-      return ai - bi;
-    });
-    const cc = CAT_COLORS[cat] || 'var(--muted)';
-    const header = `<div style="padding:10px 20px 4px;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:${cc};font-weight:600;background:var(--bg3);">${cat}</div>`;
-    const items = catExs.map(name => {
-      const s = getExSessions(name);
-      const last = s.length ? s[s.length-1].e1rm : '—';
-      return `<div class="mob-ex-item" onclick="mobNav('exercise','${name.replace(/'/g,"\\'")}');closeMobMore();">
-        <div style="width:8px;height:8px;border-radius:50%;background:${cc};flex-shrink:0"></div>
-        <div style="flex:1">${name}</div>
-        <div style="color:var(--muted);font-size:11px">${last} lbs</div>
-      </div>`;
-    }).join('');
-    return header + items;
+  const exNames = [...new Set(sessions.map(s=>s.exercise))].sort();
+  const phaseColors = {bulk:'var(--green)',cut:'var(--red)',lean:'#60a5fa'};
+  document.getElementById('mob-ex-list').innerHTML = exNames.map(name => {
+    const s = getExSessions(name);
+    const phase = s.length ? getPhase(s[s.length-1].date) : 'lean';
+    const last = s.length ? s[s.length-1].e1rm : '—';
+    return `<div class="mob-ex-item" onclick="mobNav('exercise','${name.replace(/'/g,"\\'")}')">
+      <div style="width:8px;height:8px;border-radius:50%;background:${phaseColors[phase]};flex-shrink:0"></div>
+      <div style="flex:1">${name}</div>
+      <div style="color:var(--muted);font-size:11px">${last} lbs</div>
+    </div>`;
   }).join('');
   panel.classList.add('open');
   document.getElementById('mob-exercises').classList.add('active');
