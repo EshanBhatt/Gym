@@ -900,7 +900,8 @@ function renderExercisePage(name) {
   if (exChartInst) { exChartInst.destroy(); exChartInst=null; }
   const labels = s.map(x=>x.date);
   const values = s.map(x=>x.e1rm);
-  const ptColors = s.map(x=>PHASE_COLOR[getPhase(x.date)]);
+  const CANVAS_PHASE_COLOR = {bulk:'#1d9e75', cut:'#c0392b', lean:'#60a5fa'};
+  const ptColors = s.map(x=>CANVAS_PHASE_COLOR[getPhase(x.date)]);
 
   const phasePlugin = {
     id:'phaseRegions',
@@ -908,11 +909,8 @@ function renderExercisePage(name) {
       const {ctx,chartArea:{left,right,top,bottom},scales:{x}} = chart;
       if (!x||!labels.length) return;
       const minD=labels[0], maxD=labels[labels.length-1];
-      const regions = [
-        {start:'2000-01-01',end:'2025-11-24',color:'rgba(29,158,117,0.07)'},
-        {start:'2025-11-24',end:'2026-01-24',color:'rgba(192,57,43,0.07)'},
-        {start:'2026-01-24',end:'2099-01-01',color:'rgba(37,99,168,0.07)'},
-      ];
+      const PHASE_BG = {bulk:'rgba(29,158,117,0.07)', cut:'rgba(192,57,43,0.09)', lean:'rgba(37,99,168,0.07)'};
+      const regions = PHASE_BOUNDARIES.map(b => ({start:b.start, end:b.end, color:PHASE_BG[b.phase]||'rgba(0,0,0,0)'}));
       ctx.save();
       regions.forEach(r => {
         const rs=r.start<minD?minD:r.start, re=r.end>maxD?maxD:r.end;
